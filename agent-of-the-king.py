@@ -1,285 +1,442 @@
 import os
-import praw
 import re
-import requests
+import asyncio
+from typing import List, Dict, Any, Optional
 
+import aiohttp
+import discord
+from discord import app_commands
+from discord.ext import commands
 from dotenv import load_dotenv
 
+# -----------------------------
+# Config / startup
+# -----------------------------
 load_dotenv()
-cards = requests.get('https://www.arkhamdb.com/api/public/cards?encounter=1').json()
 
-# subreddit response structure based on this tutorial
-# https://praw.readthedocs.io/en/stable/tutorials/reply_bot.html
-
-reddit = praw.Reddit(
-    user_agent = os.getenv('USER_AGENT'),
-    client_id = os.getenv('CLIENT_ID'),
-    client_secret = os.getenv('CLIENT_SECRET'),
-    username = os.getenv('USERNAME'),
-    password = os.getenv('PASSWORD')
+DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
+# Optional allowlist (comma-separated channel IDs). Leave empty to allow everywhere.
+ALLOWED_CHANNEL_IDS = set(
+    int(x.strip()) for x in os.getenv("ALLOWED_CHANNEL_IDS", "").split(",") if x.strip().isdigit()
 )
 
-subreddit = reddit.subreddit(os.getenv('SUBREDDIT'))
+INTENTS = discord.Intents.default()
+INTENTS.message_content = True  # Required to read message text
+INTENTS.guilds = True
 
-footer = f"  \n***  \n^(I am a bot. This message was posted automatically. For more information or to log an issues, check me out on) [github](https://github.com/hardingalexh/agent-of-the-king-reddit)"
+bot = commands.Bot(command_prefix="!", intents=INTENTS)
+TREE = bot.tree
 
-##########################################################
-# For a given search string, find all matching cards and #
-# respond once with each card                            #
-##########################################################     
-def respond_with_cards_and_deck(comment, cardsearch):
-    deck_searched = False
-    for search in cardsearch:
-        # search for arkhamdb decks
-        if "arkhamdb.com/deck/view/" in search or 'arkhamdb.com/decklist/view/' in search:
-            respond_with_deck(search, comment)
-            continue
+# ArkhamDB cache
+CARDS: List[Dict[str, Any]] = []
+CARDS_URL = "https://www.arkhamdb.com/api/public/cards?encounter=1"
 
-        levelSearch = re.search('(?<=\().+?(?=\))', search)
-        if levelSearch:
-            endpos = levelSearch.span()[0] - 1
-            searchTerm = search[0:endpos].strip().lower()
-            levelTerm = levelSearch.group()
-            if levelTerm.lower() == 'u':
-                matches = list(
-                    filter(
-                        lambda card: (
-                            searchTerm.lower() in card.get('name', '').lower()) 
-                            and (card.get('xp', 0) > 0), 
-                            cards
-                    )
-                )
-            elif int(levelTerm):
-                matches = list(filter(lambda card: (searchTerm.lower() in card.get('name', '').lower()) and (card.get('xp', 0) == int(levelTerm)), cards))
-        else:
-            matches = list(filter(lambda card: search.lower() in card.get('name', '').lower(), cards))
-    if len(matches) > 8:
-        respond_with_error(comment, 1)
-        return
-    elif len(matches) == 0 and not deck_searched:
-        respond_with_error(comment, 2)
-        return
+# Limits
+MAX_CARD_MATCHES = 8  # parity with your Reddit bot
+EMBEDS_PER_MESSAGE_LIMIT = 10
 
-    responses = []
-    for match in matches:
-        message = ""
-        message += f"###[{match.get('name')}]({match.get('url')})"
-        if match.get('xp', False):
-            message += f" ({match.get('xp')})"
-        
-        ## Card Image
-        if match.get('imagesrc'):
-            message +="  \n"
-            message += f" [Card Image](https://www.arkhamdb.com{match.get('imagesrc')})"
+# Footer
+FOOTER_TEXT = "I am a bot • GitHub: hardingalexh/agent-of-the-king-reddit"
 
-        ## Cost, Faction, Type, Slot
-        message += "* "
-        if match.get('faction') != "Mythos":
-            message += f"Faction: _{match.get('faction_name')}_. "
-        if match.get('cost'):
-            message += f"Cost: _{match.get('cost')}_ "
-        message += f"Type: _{match.get('type_name')}_ "
-        if match.get('slot', False):
-            message += f"Slot: _{match.get('slot')}_"
+# Regex
+CARD_TOKEN_RE = re.compile(r"\[\[(.+?)\]\]")
+DECK_URL_RE = re.compile(
+    r"(https?://)?(www\.)?arkhamdb\.com/(deck/view|decklist/view)/([^\s\])\)]*)",
+    re.IGNORECASE,
+)
 
-        ## Trait(s)
-        message += "  \n"
-        message += f"Traits: _{match.get('traits')}_"
+# -----------------------------
+# Utilities
+# -----------------------------
 
-        ## Test Icons
-        processed_symbols = process_symbols(match)
-        if processed_symbols != "":
-            message += "  \n"
-            message += f"Test Icons: {processed_symbols}"
 
-        ## Health, Sanity
-        if (match.get('health') or match.get('sanity')) and match.get('type_code') != 'enemy':
-            message += "  \n"
-            if(match.get('health')):
-                message += f"Health: {str(match.get('health'))}. "
-            if(match.get('sanity')):
-                message += f"Sanity: {str(match.get('sanity'))}."
-        
-        ## Enemy Stats
-        if match.get('type_code') == 'enemy':
-            message += "  \n"
-            message += f"Fight: {str(match.get('enemy_fight'))}. Evade: {str(match.get('enemy_evade'))}."
-
-            message += "  \n"
-            message += f"Health: {str(match.get('health'))}"
-            if match.get('health_per_investigator', False):
-                message += " Per Investigator"
-
-            message += "  \n"
-            message += f"Damage: {str(match.get('enemy_damage'))}. Horror: {str(match.get('enemy_horror'))}"
-
-            if match.get('victory', False):
-                message += "  \n"
-                message += f"Victory {match.get('victory')}"
-
-        ## Card Text
-        message += "  \n"
-        message += f"{process_text(match.get('text'))}"
-        
-        responses.append(message)
-
-    ## Horizontal Rule
-    response = "  \n***  \n".join(responses)
-    response += footer
-    comment.reply(response)
-
-##########################################################
-# Reprocesses ArkhamDB markdown to reddit markdown       #
-##########################################################
-def process_text(text):
-    text = text.replace("[[", '**')
-    text = text.replace("]]", '**')
-
-    text = text.replace("<b>", "**")
-    text = text.replace("</b>", "**")
-
-    text = text.replace("<i>", "_")
-    text = text.replace("</i>", "_")
-
-    text = text.replace("\n", "  \n")
+def process_text(text: Optional[str]) -> str:
+    if not text:
+        return ""
+    # ArkhamDB formatting -> Discord
+    text = text.replace("[[", "**").replace("]]", "**")
+    text = text.replace("<b>", "**").replace("</b>", "**")
+    text = text.replace("<i>", "_").replace("</i>", "_")
+    # Reddit-style "two spaces + newline" isn't needed; Discord uses \n
     return text
 
-##########################################################
-# Creates a string of test icons for a given player card #
-##########################################################
-def process_symbols(card):
-    stats = ['Willpower', 'Intellect', 'Combat', 'Agility', 'Wild']
-    message = ""
+
+def process_symbols(card: Dict[str, Any]) -> str:
+    stats = ["Willpower", "Intellect", "Combat", "Agility", "Wild"]
+    pieces = []
     for stat in stats:
-        if(card.get(f'skill_{stat.lower()}')):
-            message += f" {stat} x{str(card.get('skill_' + stat.lower()))}"
-    return message
+        key = f"skill_{stat.lower()}"
+        if card.get(key):
+            pieces.append(f"{stat} ×{card.get(key)}")
+    return ", ".join(pieces)
 
-##########################################################
-# Embeds decks if a valid arkhamdb deck link is detected #
-##########################################################
-def respond_with_deck(search, comment):
-    # parse message to get deck id and type (decklist or deck)
-    deckId = None
-    deckType = None
-    if "arkhamdb.com/deck/view/" in search:
-        deckId = re.search('(?<=arkhamdb\.com\/deck\/view\/).+?(?=\b|$|\s)', search)
-        deckType = 'deck'
-    if "https://arkhamdb.com/decklist/" in search:
-        deckId = re.search('(?<=arkhamdb\.com\/decklist\/view\/).+?(?=\b|$|\s)', search)
-        deckType = 'decklist'
 
-    
-    if deckId:
-        # get deck from arkhamdb api
-        deckId = deckId.group()
+def card_to_embed(card: Dict[str, Any]) -> discord.Embed:
+    name = card.get("name", "Unknown")
+    url = card.get("url") or ""
+    xp = card.get("xp")
+    title = f"{name}" + (f" ({xp})" if xp else "")
+    embed = discord.Embed(title=title, url=url, description=process_text(card.get("text")))
+    # Image
+    if card.get("imagesrc"):
+        embed.set_image(url=f"https://www.arkhamdb.com{card.get('imagesrc')}")
+    # Fields
+    line1 = []
+    if card.get("faction") != "Mythos" and card.get("faction_name"):
+        line1.append(f"Faction: _{card['faction_name']}_")
+    if card.get("cost") is not None:
+        line1.append(f"Cost: _{card['cost']}_")
+    if card.get("type_name"):
+        line1.append(f"Type: _{card['type_name']}_")
+    if card.get("slot"):
+        line1.append(f"Slot: _{card['slot']}_")
+    if line1:
+        embed.add_field(name="\u200b", value=" • ".join(line1), inline=False)
 
-        ## hacky hedge for when regex doesn't work the way I expect it to
-        deckId = deckId.split('/')[0]
-        deckId = deckId.split(']')[0]
-        deckId = deckId.split(')')[0]
+    if card.get("traits"):
+        embed.add_field(name="Traits", value=f"_{card['traits']}_", inline=False)
 
-        if deckType == 'deck':
-            apiString = 'https://arkhamdb.com/api/public/deck/' + deckId
-        if deckType == 'decklist':
-            apiString = 'https://arkhamdb.com/api/public/decklist/' + deckId
+    icons = process_symbols(card)
+    if icons:
+        embed.add_field(name="Test Icons", value=icons, inline=False)
+
+    # Health/Sanity or Enemy stats
+    if card.get("type_code") == "enemy":
+        stats = []
+        if card.get("enemy_fight") is not None:
+            stats.append(f"Fight: {card['enemy_fight']}")
+        if card.get("enemy_evade") is not None:
+            stats.append(f"Evade: {card['enemy_evade']}")
+        if card.get("health") is not None:
+            hp = f"{card['health']}" + (" per investigator" if card.get("health_per_investigator") else "")
+            stats.append(f"Health: {hp}")
+        if card.get("enemy_damage") is not None:
+            stats.append(f"Damage: {card['enemy_damage']}")
+        if card.get("enemy_horror") is not None:
+            stats.append(f"Horror: {card['enemy_horror']}")
+        if card.get("victory") is not None:
+            stats.append(f"Victory {card['victory']}")
+        if stats:
+            embed.add_field(name="Enemy", value=" • ".join(stats), inline=False)
+    else:
+        if card.get("health") is not None or card.get("sanity") is not None:
+            hs = []
+            if card.get("health") is not None:
+                hs.append(f"Health: {card['health']}")
+            if card.get("sanity") is not None:
+                hs.append(f"Sanity: {card['sanity']}")
+            embed.add_field(name="\u200b", value=" • ".join(hs), inline=False)
+
+    embed.set_footer(text=FOOTER_TEXT)
+    return embed
+
+
+def chunk_embeds(embeds: List[discord.Embed], size: int = EMBEDS_PER_MESSAGE_LIMIT):
+    for i in range(0, len(embeds), size):
+        yield embeds[i : i + size]
+
+
+def set_footer_on_all(embeds: List[discord.Embed]) -> None:
+    for e in embeds:
+        if not e.footer:
+            e.set_footer(text=FOOTER_TEXT)
+
+
+def parse_level_search(term: str):
+    """
+    Supports 'Card Name (u)' for any upgraded, or '(2)' for exact level.
+    Returns (search_term:str, level_filter: Optional[callable])
+    """
+    m = re.search(r"\((.+?)\)$", term.strip())
+    if not m:
+        return term.strip().lower(), None
+    level = m.group(1).strip()
+    search_term = term[: m.span()[0]].strip().lower()
+
+    def level_filter(card: Dict[str, Any]) -> bool:
+        xp = card.get("xp", 0) or 0
+        if level.lower() == "u":
+            return (search_term in card.get("name", "").lower()) and xp > 0
         try:
-            deckJson = requests.get(apiString).json()
-        except:
-            respond_with_error(comment, 0)
+            n = int(level)
+            return (search_term in card.get("name", "").lower()) and xp == n
+        except ValueError:
+            return search_term in card.get("name", "").lower()
+
+    return search_term, level_filter
+
+
+def find_matching_cards(queries: List[str]) -> List[Dict[str, Any]]:
+    matches: List[Dict[str, Any]] = []
+    seen_codes = set()
+    for q in queries:
+        q = q.strip()
+        if not q:
+            continue
+        # Level filters
+        base, level_fn = parse_level_search(q)
+        # Filter
+        if level_fn:
+            subset = [c for c in CARDS if level_fn(c)]
+        else:
+            subset = [c for c in CARDS if base in (c.get("name") or "").lower()]
+        # Deduplicate by card code
+        for c in subset:
+            code = c.get("code")
+            if code and code not in seen_codes:
+                seen_codes.add(code)
+                matches.append(c)
+    return matches
+
+
+def is_big_response(card_count: int, deck_embed_count: int = 0) -> bool:
+    # Thread threshold: >3 cards or deck output likely spanning multiple messages
+    return card_count > 3 or deck_embed_count > 10
+
+
+# -----------------------------
+# ArkhamDB I/O
+# -----------------------------
+async def fetch_json(session: aiohttp.ClientSession, url: str) -> Any:
+    async with session.get(url, timeout=aiohttp.ClientTimeout(total=20)) as resp:
+        resp.raise_for_status()
+        return await resp.json()
+
+
+async def load_cards():
+    global CARDS
+    async with aiohttp.ClientSession() as session:
+        CARDS = await fetch_json(session, CARDS_URL)
+
+
+async def fetch_deck(deck_url_match: re.Match) -> Dict[str, Any]:
+    """
+    Accepts a regex match against DECK_URL_RE, returns deck JSON and a type ('deck' | 'decklist') and the id.
+    """
+    kind = deck_url_match.group(3).lower()  # 'deck/view' or 'decklist/view'
+    raw_tail = deck_url_match.group(4)
+    deck_id = (raw_tail or "").split("/")[0].split("]")[0].split(")")[0]
+    api_url = None
+    deck_type = None
+    if "deck/view" in kind:
+        deck_type = "deck"
+        api_url = f"https://arkhamdb.com/api/public/deck/{deck_id}"
+    else:
+        deck_type = "decklist"
+        api_url = f"https://arkhamdb.com/api/public/decklist/{deck_id}"
+
+    async with aiohttp.ClientSession() as session:
+        data = await fetch_json(session, api_url)
+        return {"type": deck_type, "id": deck_id, "json": data}
+
+
+def build_deck_embeds(deck: Dict[str, Any]) -> List[discord.Embed]:
+    data = deck["json"]
+    investigator_code = data.get("investigator_code")
+    gators = [c for c in CARDS if c.get("code") == investigator_code]
+    gator = gators[0] if gators else {}
+    inv_name = gator.get("name", "Investigator")
+    deck_name = data.get("name", "")
+    version = data.get("version", "")
+
+    header = discord.Embed(
+        title=f"{inv_name}: {deck_name} {version}",
+        description="",
+    )
+    # Link back
+    if deck["type"] == "deck":
+        header.url = f"https://arkhamdb.com/deck/view/{deck['id']}"
+    else:
+        header.url = f"https://arkhamdb.com/decklist/view/{deck['id']}"
+    header.set_footer(text=FOOTER_TEXT)
+
+    embeds = [header]
+
+    # Gather cards used in deck
+    slots = data.get("slots", {}) or {}
+    deck_cards = [c for c in CARDS if (c.get("code") or "") in slots.keys()]
+
+    # Categories
+    categories = ["Asset", "Permanent", "Event", "Skill", "Treachery", "Enemy"]
+    for category in categories:
+        if category == "Permanent":
+            cat_cards = [c for c in deck_cards if c.get("permanent") is True]
+        else:
+            cat_cards = [
+                c
+                for c in deck_cards
+                if (c.get("type_code", "") == category.lower() and not c.get("permanent"))
+            ]
+        if not cat_cards:
+            continue
+
+        # For assets: group by slot
+        if category == "Asset":
+            cat_cards.sort(key=lambda e: e.get("slot", "zzzzzz"))
+
+        embed = discord.Embed(title=f"{category}s")
+        parts: List[str] = []
+
+        if category == "Asset":
+            last_slot = None
+            for card in cat_cards:
+                qty = slots.get(card.get("code"), 1)
+                line = f"{qty} × [{card.get('name','')}]" + (f" ({card.get('xp')})" if card.get("xp") else "")
+                line += f" ({card.get('url','')})"
+                slot = card.get("slot", "Other")
+                if slot != last_slot:
+                    parts.append(f"\n**{slot}:**")
+                    last_slot = slot
+                parts.append(f"- {line}")
+        else:
+            for card in cat_cards:
+                qty = slots.get(card.get("code"), 1)
+                line = f"{qty} × [{card.get('name','')}]" + (f" ({card.get('xp')})" if card.get("xp") else "")
+                line += f" ({card.get('url','')})"
+                parts.append(f"- {line}")
+
+        # Discord field length safety; split across multiple embeds if huge
+        text = "\n".join(parts)
+        # 4096 char cap for description; if too long, break into chunks of ~1500 safely
+        if len(text) <= 3800:
+            embed.description = text
+            embed.set_footer(text=FOOTER_TEXT)
+            embeds.append(embed)
+        else:
+            chunks = []
+            buf = []
+            count = 0
+            for line in parts:
+                if count + len(line) + 1 > 1500:
+                    chunks.append("\n".join(buf))
+                    buf = []
+                    count = 0
+                buf.append(line)
+                count += len(line) + 1
+            if buf:
+                chunks.append("\n".join(buf))
+            for i, ch in enumerate(chunks, 1):
+                e = discord.Embed(title=f"{category}s [{i}/{len(chunks)}]", description=ch)
+                e.set_footer(text=FOOTER_TEXT)
+                embeds.append(e)
+
+    return embeds
+
+
+async def send_embeds_in_batches(target: discord.abc.Messageable, embeds: List[discord.Embed]):
+    set_footer_on_all(embeds)
+    for batch in chunk_embeds(embeds):
+        await target.send(embeds=batch)
+
+
+# -----------------------------
+# Bot events / commands
+# -----------------------------
+@bot.event
+async def on_ready():
+    # Load cards once on startup
+    await load_cards()
+    try:
+        await TREE.sync()
+    except Exception:
+        pass
+    print(f"Logged in as {bot.user} (ID: {bot.user.id})")
+
+
+@bot.event
+async def on_message(message: discord.Message):
+    # Ignore self/bots
+    if message.author.bot:
+        return
+
+    # Allowlist (optional)
+    if ALLOWED_CHANNEL_IDS and message.channel.id not in ALLOWED_CHANNEL_IDS:
+        return
+
+    content = message.content or ""
+
+    # Extract deck URLs (first, since they don't count against "no results" for cards)
+    deck_match = DECK_URL_RE.search(content)
+
+    # Extract card searches [[...]]
+    card_tokens = CARD_TOKEN_RE.findall(content)
+
+    # Nothing for us to do
+    if not deck_match and not card_tokens:
+        return
+
+    # Decide target: same channel or a thread
+    thread: Optional[discord.Thread] = None
+
+    # Build card embeds
+    card_embeds: List[discord.Embed] = []
+    if card_tokens:
+        matches = find_matching_cards(card_tokens)
+        if len(matches) > MAX_CARD_MATCHES:
+            await message.reply("Your search returned more than 8 cards, and that's my hand limit. Take 1 horror.")
             return
+        if len(matches) == 0 and not deck_match:
+            await message.reply("Your search returned no results. Take 1 horror.")
+            return
+        card_embeds = [card_to_embed(m) for m in matches]
 
-        # create initial message
-        
-        message = ""
-        # Use gator/deck name as header
-        gator = list(filter(lambda card: card.get('code', 0) == deckJson.get('investigator_code', None), cards))[0]
-        message += f"#{gator.get('name', '')}: {deckJson.get('name', '')} {deckJson.get('version', '')}"
+    # Build deck embeds (if any)
+    deck_embeds: List[discord.Embed] = []
+    if deck_match:
+        try:
+            deck = await fetch_deck(deck_match)
+            deck_embeds = build_deck_embeds(deck)
+        except Exception:
+            await message.reply("Something went wrong attempting to retrieve your deck from ArkhamDB. Take 1 horror.")
+            deck_embeds = []
+
+    total_embeds = len(card_embeds) + len(deck_embeds)
+    make_thread = is_big_response(len(card_embeds), len(deck_embeds))
+
+    target: discord.abc.Messageable = message.channel
+
+    if make_thread and isinstance(message.channel, (discord.TextChannel, discord.Threadable)):
+        try:
+            name_hint = None
+            if deck_embeds:
+                name_hint = (deck_embeds[0].title or "arkhamdb").strip()[:80]
+            elif card_embeds:
+                name_hint = (card_embeds[0].title or "arkhamdb").strip()[:80]
+            thread = await message.create_thread(name=f"arkhamdb: {name_hint or 'results'}")
+            target = thread
+        except Exception:
+            # Fallback: stay in channel
+            target = message.channel
+
+    # Send results
+    try:
+        if deck_embeds:
+            await send_embeds_in_batches(target, deck_embeds)
+        if card_embeds:
+            await send_embeds_in_batches(target, card_embeds)
+        # Light reaction as ACK
+        with contextlib.suppress(Exception):
+            await message.add_reaction("🃏")
+    except Exception as e:
+        await message.reply(f"Failed to send response: {e}")
 
 
-        ## Add link back to arkhamdb
-        message += "  \n"
-        if deckType == 'deck':
-            message += f'[View on Arkhamdb](https://arkhamdb.com/deck/view/{deckId})'
-        if (deckType == 'decklist'):
-            message += f'[View on Arkhamdb](https://arkhamdb.com/decklist/view{deckId})'
-        
-        ## Horizontal Rule
-        message +="  \n"
-        message += "***"
+# Optional: simple slash command to reload cards cache
+@TREE.command(name="reload_cards", description="Reload ArkhamDB card cache")
+async def reload_cards_cmd(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True)
+    try:
+        await load_cards()
+        await interaction.followup.send("Card cache reloaded.", ephemeral=True)
+    except Exception as e:
+        await interaction.followup.send(f"Failed: {e}", ephemeral=True)
 
-        ## get all cards used in deck
-        deckCards = list(filter(lambda card: card.get('code', '') in deckJson.get('slots', {}).keys(), cards))
 
-        categories = ['Asset', 'Permanent', 'Event', 'Skill', 'Treachery', 'Enemy']
-        for category in categories:
-            ## handle category codes
-            if(category == 'Permanent'):
-                categoryCards = list(filter(lambda card: card.get('permanent', False) == True, deckCards))
-            else:
-                categoryCards = list(filter(lambda card: card.get('type_code', '') == category.lower() and card.get('permanent', False) == False, deckCards))
-            if(category == 'Treachery'):
-                message += '  \n **Treacheries:**'
-            elif(category == 'Enemy'):
-                message += '  \n **Enemies:**'
-            else:
-                message += f'  \n **{category}s:**'
-            # handle asset slots
-            if category == 'Asset':
-                def slotFilter(e):
-                    return e.get('slot', 'zzzzzz')
-                categoryCards.sort(key=slotFilter)
-                slots = []
-
-            for card in categoryCards:
-                cardString = f"{deckJson.get('slots')[card.get('code')]} x "
-                cardString += f"[{card.get('name', '')}]({card.get('url', '')})"
-                if card.get('xp', 0) > 0:
-                    cardString += ' (' + str(card.get('xp', 0)) + ')'
-
-                if category == 'Asset' and card.get('slot', '') not in slots:
-                    message += '  \n' + card.get('slot', 'Other') + ':'
-                    slots.append(card.get('slot', ''))
-                message += '  \n' + cardString
-            message += '  \n'
-        
-
-        ## footer
-        message += footer
-
-        comment.reply(message)
-
-##########################################################
-# Returns error for recognized but invalid queries       #
-##########################################################
-def respond_with_error(comment, error):
-    errors = [
-        'Something went wrong attempting to retrieve your deck from ArkhamDB.',
-        "Your search returned more than 8 cards, and that's my hand limit.",
-        "Your search returned no results."
-    ]
-    message = f"{errors[error]} Take one horror."
-    comment.reply(message)
-
-def main():
-    checks = 0
-    for comment in subreddit.stream.comments():
-        already_replied = False
-        if comment.author.name == reddit.user.me().name:
-            already_replied = True
-        comment.refresh() # fetches comment replies
-        for reply in comment.replies:
-            if reply.author.name == reddit.user.me().name:
-                already_replied = True
-        if not already_replied:
-
-            # search for cards
-            cardsearch = re.findall('(?<=\[\[).+?(?=\]\])', comment.body)
-            if len(cardsearch):
-                respond_with_cards_and_decks(comment, cardsearch)
-
-                
-            
-
+# -----------------------------
+# Main
+# -----------------------------
 if __name__ == "__main__":
-    main()
+    import contextlib
+    if not DISCORD_TOKEN:
+        raise SystemExit("Missing DISCORD_TOKEN in environment/.env")
+    bot.run(DISCORD_TOKEN)
