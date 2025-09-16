@@ -1,6 +1,7 @@
 import os
 import re
 import asyncio
+import contextlib
 from typing import List, Dict, Any, Optional
 
 import aiohttp
@@ -8,6 +9,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 from dotenv import load_dotenv
+from rapidfuzz import process, fuzz
 
 # -----------------------------
 # Config / startup
@@ -30,6 +32,10 @@ TREE = bot.tree
 # ArkhamDB cache
 CARDS: List[Dict[str, Any]] = []
 CARDS_URL = "https://www.arkhamdb.com/api/public/cards?encounter=1"
+
+# Name index for fuzzy matching
+NAME_INDEX: Dict[str, List[Dict[str, Any]]] = {}
+NAME_KEYS: List[str] = []
 
 # Limits
 MAX_CARD_MATCHES = 8  # parity with your Reddit bot
@@ -166,26 +172,91 @@ def parse_level_search(term: str):
     return search_term, level_filter
 
 
+def _norm(s: str) -> str:
+    # Lowercase and strip non-alphanumerics so "Lucky!" == "lucky"
+    return re.sub(r'[^a-z0-9]+', '', (s or '').lower())
+
+
+def _build_name_index(cards: List[Dict[str, Any]]):
+    """Map normalized name -> list of card dicts (all printings)."""
+    idx: Dict[str, List[Dict[str, Any]]] = {}
+    for c in cards:
+        n = _norm(c.get('name') or '')
+        if not n:
+            continue
+        idx.setdefault(n, []).append(c)
+    return idx
+
+
+def _refresh_name_index():
+    global NAME_INDEX, NAME_KEYS
+    NAME_INDEX = _build_name_index(CARDS)
+    NAME_KEYS = list(NAME_INDEX.keys())
+
+
 def find_matching_cards(queries: List[str]) -> List[Dict[str, Any]]:
+    """
+    Matching order per token:
+    1) Exact name (normalized) -> if no (level), pick lowest XP printing; else include all matching level.
+    2) Substring fallback -> one lowest-XP printing per distinct name.
+    3) Fuzzy fallback -> best normalized name over NAME_KEYS, threshold 80; pick lowest XP (respect level if provided).
+    """
     matches: List[Dict[str, Any]] = []
     seen_codes = set()
+
     for q in queries:
         q = q.strip()
         if not q:
             continue
-        # Level filters
+
         base, level_fn = parse_level_search(q)
-        # Filter
-        if level_fn:
-            subset = [c for c in CARDS if level_fn(c)]
-        else:
-            subset = [c for c in CARDS if base in (c.get("name") or "").lower()]
-        # Deduplicate by card code
-        for c in subset:
-            code = c.get("code")
-            if code and code not in seen_codes:
-                seen_codes.add(code)
-                matches.append(c)
+        base_norm = _norm(base)
+
+        # --- EXACT NAME PATH (normalized, e.g., "Lucky!" == "lucky") ---
+        exacts = [c for c in CARDS if _norm(c.get('name') or '') == base_norm and (not level_fn or level_fn(c))]
+        if exacts:
+            # No level given -> lowest XP printing only; else include all passing level filter
+            picks = [min(exacts, key=lambda c: (c.get('xp') or 0))] if not level_fn else exacts
+            for c in picks:
+                code = c.get('code')
+                if code and code not in seen_codes:
+                    seen_codes.add(code)
+                    matches.append(c)
+            continue  # prefer exact; skip substring for this token
+
+        # --- SUBSTRING FALLBACK (return one lowest-XP per distinct name) ---
+        by_name_lowest: Dict[str, Dict[str, Any]] = {}
+        for c in CARDS:
+            name = (c.get('name') or '')
+            if base in name.lower() and (not level_fn or level_fn(c)):
+                key = _norm(name)
+                cur = by_name_lowest.get(key)
+                if cur is None or (c.get('xp') or 0) < (cur.get('xp') or 0):
+                    by_name_lowest[key] = c
+
+        if by_name_lowest:
+            for c in by_name_lowest.values():
+                code = c.get('code')
+                if code and code not in seen_codes:
+                    seen_codes.add(code)
+                    matches.append(c)
+            continue
+
+        # --- FUZZY FALLBACK (only if nothing else matched) ---
+        if NAME_KEYS:
+            best = process.extractOne(base_norm, NAME_KEYS, scorer=fuzz.token_set_ratio)
+            if best and best[1] >= 80:  # tweak threshold 75–85 as desired
+                best_key = best[0]
+                variants = NAME_INDEX.get(best_key, [])
+                if level_fn:
+                    variants = [c for c in variants if level_fn(c)]
+                if variants:
+                    pick = min(variants, key=lambda c: (c.get('xp') or 0))
+                    code = pick.get('code')
+                    if code and code not in seen_codes:
+                        seen_codes.add(code)
+                        matches.append(pick)
+
     return matches
 
 
@@ -198,15 +269,22 @@ def is_big_response(card_count: int, deck_embed_count: int = 0) -> bool:
 # ArkhamDB I/O
 # -----------------------------
 async def fetch_json(session: aiohttp.ClientSession, url: str) -> Any:
-    async with session.get(url, timeout=aiohttp.ClientTimeout(total=20)) as resp:
+    async with session.get(
+        url,
+        allow_redirects=True,
+        timeout=aiohttp.ClientTimeout(total=30),
+        headers={"User-Agent": "AgentOfTheKing/1.0"},
+    ) as resp:
         resp.raise_for_status()
-        return await resp.json()
+        # Accept JSON even if Content-Type header is off
+        return await resp.json(content_type=None)
 
 
 async def load_cards():
     global CARDS
     async with aiohttp.ClientSession() as session:
         CARDS = await fetch_json(session, CARDS_URL)
+    _refresh_name_index()
 
 
 async def fetch_deck(deck_url_match: re.Match) -> Dict[str, Any]:
@@ -390,12 +468,10 @@ async def on_message(message: discord.Message):
             await message.reply("Something went wrong attempting to retrieve your deck from ArkhamDB. Take 1 horror.")
             deck_embeds = []
 
-    total_embeds = len(card_embeds) + len(deck_embeds)
     make_thread = is_big_response(len(card_embeds), len(deck_embeds))
-
     target: discord.abc.Messageable = message.channel
 
-    if make_thread and isinstance(message.channel, (discord.TextChannel, discord.Threadable)):
+    if make_thread and isinstance(message.channel, discord.TextChannel):
         try:
             name_hint = None
             if deck_embeds:
@@ -436,7 +512,7 @@ async def reload_cards_cmd(interaction: discord.Interaction):
 # Main
 # -----------------------------
 if __name__ == "__main__":
-    import contextlib
     if not DISCORD_TOKEN:
         raise SystemExit("Missing DISCORD_TOKEN in environment/.env")
     bot.run(DISCORD_TOKEN)
+
