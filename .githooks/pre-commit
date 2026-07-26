@@ -7,16 +7,14 @@ print_block_message() {
 
 ERROR: Potential credential leak detected in staged changes.
 
-You must rotate the exposed token now.
-
 What to do next:
-1) Rotate the token in Discord Developer Portal (Bot -> Reset Token).
-2) Update local .env with the new token (do not commit .env).
-3) Remove secret-bearing files from the index:
+1) Remove secret-bearing files from the index:
    git rm --cached .env
-4) Unstage accidental secret lines or files:
+2) Unstage accidental secret lines or files:
    git restore --staged <file>
-5) Re-commit only safe files and push again.
+3) Remove the secret value from the file content.
+4) Re-stage only safe files.
+5) Re-commit and push again.
 
 Tip: keep placeholders in .env.example and real credentials only in local .env.
 
