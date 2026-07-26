@@ -10,10 +10,13 @@ const dayHeaders = Array.from(document.querySelectorAll('.grid-header:not(.time-
 const sectionHeaders = Array.from(document.querySelectorAll('.section-header'));
 const userFilterContainer = document.getElementById('user-availability-data');
 const recommendationSummary = document.getElementById('recommendation-summary');
+const discordUserIdPattern = /^\d{17,20}$/;
 const userFilterState = new Map();
 const userLockState = new Map();
 const userFilterData = JSON.parse(userFilterContainer?.dataset.users || '[]');
 const slotUserMap = JSON.parse(userFilterContainer?.dataset.slotUsers || '{}');
+const sessionLengthHours = Math.max(0.5, parseFloat(recommendationSummary?.dataset.sessionLengthHours || '4') || 4);
+const sessionSlotCount = Math.max(1, Math.round(sessionLengthHours * 2));
 const dragState = {
   active: false,
   pointerId: null,
@@ -40,6 +43,14 @@ function setSavingState(isSaving) {
 
   saveButton.disabled = isSaving;
   saveButton.textContent = isSaving ? 'Saving…' : 'Save';
+}
+
+function getEditorUserId() {
+  return (hiddenUserIdInput?.value || userIdInput?.value || '').trim();
+}
+
+function isDiscordUserId(value) {
+  return discordUserIdPattern.test(String(value || '').trim());
 }
 
 function syncSelectedSlots() {
@@ -166,7 +177,7 @@ function applyHeatmapStyles() {
 function formatSlotRange(slot) {
   const [hours, minutes] = slot.split(':').map(Number);
   const startMinutes = hours * 60 + minutes;
-  const endMinutes = startMinutes + 4 * 60;
+  const endMinutes = startMinutes + (sessionLengthHours * 60);
   const endHour = (Math.floor(endMinutes / 60) % 24 + 24) % 24;
   const endMinute = endMinutes % 60;
   const pad = (value) => String(value).padStart(2, '0');
@@ -200,8 +211,8 @@ function getRecommendation(activeUserIds) {
   const lockedUserIds = getLockedUserIds(activeUserIds);
 
   days.forEach((day) => {
-    for (let start = 0; start <= daySlots.length - 8; start += 1) {
-      const windowSlots = daySlots.slice(start, start + 8);
+    for (let start = 0; start <= daySlots.length - sessionSlotCount; start += 1) {
+      const windowSlots = daySlots.slice(start, start + sessionSlotCount);
       const matchingUsers = activeUserIds.filter((userId) => {
         return windowSlots.every((slot) => {
           const slotId = `${day}:${slot}`;
@@ -266,12 +277,12 @@ function updateRecommendationStyles() {
   }
 
   if (!recommendations.length) {
-    recommendationSummary.innerHTML = '<span class="recommendation-label">Live recommendation</span><strong>No strong shared 4-hour window is available for the selected players.</strong>';
+    recommendationSummary.innerHTML = `<span class="recommendation-label">Live recommendation</span><strong>No strong shared ${sessionLengthHours}-hour window is available for the selected players.</strong>`;
     return;
   }
 
   const firstRecommendation = recommendations[0];
-  const label = `${firstRecommendation.day}: the strongest shared window for the selected players is a full 4-hour block from ${formatSlotRange(firstRecommendation.startSlot)}. ${firstRecommendation.count} players match that window.`;
+  const label = `${firstRecommendation.day}: the strongest shared window for the selected players is a full ${sessionLengthHours}-hour block from ${formatSlotRange(firstRecommendation.startSlot)}. ${firstRecommendation.count} players match that window.`;
   recommendationSummary.innerHTML = `<span class="recommendation-label">Live recommendation</span><strong>${label}</strong>`;
 }
 
@@ -282,6 +293,8 @@ function renderUserFilters() {
 
   const users = userFilterData;
   userFilterContainer.innerHTML = '';
+  const grouped = new Map();
+
   users.forEach((user) => {
     let isActive = userFilterState.has(user.id) ? userFilterState.get(user.id) : user.active !== false;
     const isLocked = userLockState.has(user.id) ? userLockState.get(user.id) : false;
@@ -291,49 +304,102 @@ function renderUserFilters() {
     userFilterState.set(user.id, isActive);
     userLockState.set(user.id, isLocked);
 
-    const chip = document.createElement('div');
-    chip.className = `user-chip ${isActive ? 'is-selected' : 'is-deselected'} ${isLocked ? 'is-locked' : 'is-unlocked'}`;
+    const groupKey = user.group || 'B';
+    const groupLabel = user.group_label || (groupKey === 'A'
+      ? 'Group A - Game role members'
+      : 'Group B - Other users with availability');
+    if (!grouped.has(groupKey)) {
+      grouped.set(groupKey, { label: groupLabel, users: [] });
+    }
+    grouped.get(groupKey).users.push(user);
+  });
 
-    const toggleButton = document.createElement('button');
-    toggleButton.className = 'user-toggle';
-    toggleButton.type = 'button';
-    toggleButton.dataset.userId = user.id;
-    toggleButton.setAttribute('aria-pressed', String(isActive));
-    toggleButton.setAttribute('aria-label', `${isActive ? 'Deselect' : 'Select'} ${user.name}`);
-    toggleButton.innerHTML = `<span class="user-toggle-dot ${isActive ? 'is-active' : 'is-dimmed'}"></span><span class="user-toggle-label">${user.name}</span>`;
-    toggleButton.addEventListener('click', () => {
-      const nextValue = !userFilterState.get(user.id);
-      if (!nextValue && userLockState.get(user.id)) {
-        setStatus(`Unlock ${user.name} before deselecting`, true);
+  const orderedGroups = ['A', 'B', ...Array.from(grouped.keys()).filter((key) => key !== 'A' && key !== 'B')];
+  orderedGroups.forEach((groupKey) => {
+    const bucket = grouped.get(groupKey);
+    if (!bucket) {
+      return;
+    }
+
+    const wrapper = document.createElement('section');
+    wrapper.className = 'user-group';
+
+    const heading = document.createElement('h3');
+    heading.className = 'user-group-title';
+    heading.textContent = bucket.label;
+    wrapper.appendChild(heading);
+
+    const row = document.createElement('div');
+    row.className = 'user-filter-row';
+
+    bucket.users.forEach((user) => {
+      const isActive = userFilterState.get(user.id);
+      const isLocked = userLockState.get(user.id);
+      const isSelectable = user.selectable !== false;
+
+      const chip = document.createElement('div');
+      chip.className = `user-chip ${isActive ? 'is-selected' : 'is-deselected'} ${isLocked ? 'is-locked' : 'is-unlocked'} ${isSelectable ? 'is-selectable' : 'is-unavailable'}`;
+
+      const toggleButton = document.createElement('button');
+      toggleButton.className = 'user-toggle';
+      toggleButton.type = 'button';
+      toggleButton.dataset.userId = user.id;
+      toggleButton.disabled = !isSelectable;
+      toggleButton.setAttribute('aria-pressed', String(isActive));
+      toggleButton.setAttribute('aria-disabled', String(!isSelectable));
+      toggleButton.setAttribute('aria-label', `${isActive ? 'Deselect' : 'Select'} ${user.name}`);
+      const toggleDot = document.createElement('span');
+      toggleDot.className = `user-toggle-dot ${isActive ? 'is-active' : 'is-dimmed'}`;
+      const toggleLabel = document.createElement('span');
+      toggleLabel.className = 'user-toggle-label';
+      toggleLabel.textContent = String(user.name || user.id || 'Unknown user');
+      toggleButton.appendChild(toggleDot);
+      toggleButton.appendChild(toggleLabel);
+      toggleButton.addEventListener('click', () => {
+        if (!isSelectable) {
+          return;
+        }
+        const nextValue = !userFilterState.get(user.id);
+        if (!nextValue && userLockState.get(user.id)) {
+          setStatus(`Unlock ${user.name} before deselecting`, true);
+          renderUserFilters();
+          return;
+        }
+        userFilterState.set(user.id, nextValue);
         renderUserFilters();
-        return;
-      }
-      userFilterState.set(user.id, nextValue);
-      renderUserFilters();
-      applyHeatmapStyles();
+        applyHeatmapStyles();
+      });
+
+      const lockButton = document.createElement('button');
+      lockButton.className = 'user-lock-toggle';
+      lockButton.type = 'button';
+      lockButton.dataset.userId = user.id;
+      lockButton.disabled = !isSelectable;
+      lockButton.setAttribute('aria-pressed', String(isLocked));
+      lockButton.setAttribute('aria-disabled', String(!isSelectable));
+      lockButton.setAttribute('aria-label', `${isLocked ? 'Unlock' : 'Lock'} ${user.name}`);
+      lockButton.setAttribute('title', isLocked ? 'Unlock this user for recommendations' : 'Lock this user for recommendations');
+      lockButton.innerHTML = `<span class="user-lock-icon" aria-hidden="true">${isLocked ? '🔒' : '🔓'}</span>`;
+      lockButton.addEventListener('click', () => {
+        if (!isSelectable) {
+          return;
+        }
+        const nextValue = !userLockState.get(user.id);
+        userLockState.set(user.id, nextValue);
+        if (nextValue) {
+          userFilterState.set(user.id, true);
+        }
+        renderUserFilters();
+        applyHeatmapStyles();
+      });
+
+      chip.appendChild(toggleButton);
+      chip.appendChild(lockButton);
+      row.appendChild(chip);
     });
 
-    const lockButton = document.createElement('button');
-    lockButton.className = 'user-lock-toggle';
-    lockButton.type = 'button';
-    lockButton.dataset.userId = user.id;
-    lockButton.setAttribute('aria-pressed', String(isLocked));
-    lockButton.setAttribute('aria-label', `${isLocked ? 'Unlock' : 'Lock'} ${user.name}`);
-    lockButton.setAttribute('title', isLocked ? 'Unlock this user for recommendations' : 'Lock this user for recommendations');
-    lockButton.innerHTML = `<span class="user-lock-icon" aria-hidden="true">${isLocked ? '🔒' : '🔓'}</span>`;
-    lockButton.addEventListener('click', () => {
-      const nextValue = !userLockState.get(user.id);
-      userLockState.set(user.id, nextValue);
-      if (nextValue) {
-        userFilterState.set(user.id, true);
-      }
-      renderUserFilters();
-      applyHeatmapStyles();
-    });
-
-    chip.appendChild(toggleButton);
-    chip.appendChild(lockButton);
-    userFilterContainer.appendChild(chip);
+    wrapper.appendChild(row);
+    userFilterContainer.appendChild(wrapper);
   });
 }
 
@@ -347,9 +413,20 @@ async function loadAvailability() {
     return;
   }
 
-  const userId = hiddenUserIdInput.value.trim() || userIdInput.value.trim() || 'local-user';
+  const userId = getEditorUserId();
+  if (!isDiscordUserId(userId)) {
+    setStatus('Invalid user ID. Open this page from Discord using /availability.', true);
+    if (saveButton) {
+      saveButton.disabled = true;
+    }
+    return;
+  }
   const params = new URLSearchParams({ user_id: userId });
   const response = await fetch(`/availability?${params.toString()}`);
+  if (!response.ok) {
+    setStatus('Unable to load availability.', true);
+    return;
+  }
   const data = await response.json();
   boxes.forEach((box) => {
     const slotId = `${box.dataset.day}:${box.dataset.slot}`;
@@ -364,6 +441,11 @@ async function loadAvailability() {
 if (form) {
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
+    const userId = getEditorUserId();
+    if (!isDiscordUserId(userId)) {
+      setStatus('Invalid user ID. Open this page from Discord using /availability.', true);
+      return;
+    }
     syncSelectedSlots();
     setSavingState(true);
     setStatus('Saving...');

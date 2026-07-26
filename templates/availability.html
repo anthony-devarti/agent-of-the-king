@@ -34,30 +34,18 @@
       <section class="toolbar-card">
         {% if heatmap %}
         <div class="identity-card">
-          <span class="identity-label">View</span>
-          <span class="identity-value">Availability</span>
+          <span class="identity-label">Game</span>
+          <span class="identity-value">{{ heatmap_game_name or 'All Availability' }}</span>
         </div>
-        <div id="user-availability-data" class="user-filter-row" data-users='{{ heatmap_users|tojson }}' data-slot-users='{{ slot_user_map|tojson }}'>
-          {% for user in heatmap_users %}
-          <div class="user-chip">
-            <button class="user-toggle" type="button" data-user-id="{{ user.id }}" aria-pressed="{{ 'true' if user.active else 'false' }}">
-              <span class="user-toggle-dot {{ 'is-active' if user.active else 'is-dimmed' }}"></span>
-              <span class="user-toggle-label">{{ user.name }}</span>
-            </button>
-            <button class="user-lock-toggle" type="button" data-user-id="{{ user.id }}" aria-pressed="false" title="Lock this user for recommendations">
-              <span class="user-lock-icon" aria-hidden="true">🔓</span>
-            </button>
-          </div>
-          {% endfor %}
-        </div>
+        <div id="user-availability-data" class="user-filter-groups" data-users='{{ heatmap_users|tojson }}' data-slot-users='{{ slot_user_map|tojson }}'></div>
         {% else %}
         <form id="availability-form">
           <div class="identity-card">
             <span class="identity-label">User</span>
-            <span class="identity-value">{{ user_id or 'local-user' }}</span>
+            <span class="identity-value">{{ display_name or user_id or 'Unknown user' }}</span>
           </div>
-          <input id="user-id" name="user_id" type="hidden" value="{{ user_id or 'local-user' }}" {% if user_readonly %}readonly{% endif %} />
-          <input id="user-id-hidden" name="user_id" type="hidden" value="{{ user_id or 'local-user' }}" {% if user_readonly %}readonly{% endif %} />
+          <input id="user-id" name="user_id" type="hidden" value="{{ user_id or '' }}" {% if user_readonly %}readonly{% endif %} />
+          <input id="user-id-hidden" name="user_id" type="hidden" value="{{ user_id or '' }}" {% if user_readonly %}readonly{% endif %} />
           <input id="selected-slots" name="selected_slots" type="hidden" value="" />
           <button id="save-button" type="submit">Save</button>
         </form>
@@ -72,9 +60,9 @@
           <span class="matrix-hint">{{ 'Brighter cells indicate more people are available.' if heatmap else 'Tap any slot to light it up as available.' }}</span>
         </div>
         {% if heatmap %}
-        <div id="recommendation-summary" class="recommendation-summary" data-time-slots='{{ time_slots|tojson }}'>
+        <div id="recommendation-summary" class="recommendation-summary" data-time-slots='{{ time_slots|tojson }}' data-session-length-hours="{{ heatmap_session_length_hours or 4 }}">
           <span class="recommendation-label">Live recommendation</span>
-          <strong>Checking the best 4-hour block…</strong>
+          <strong>Checking the best session block…</strong>
         </div>
         {% endif %}
         <div class="availability-grid" role="grid" aria-label="Weekly availability">

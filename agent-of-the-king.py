@@ -2,6 +2,7 @@ import os
 import re
 import asyncio
 import contextlib
+from urllib.parse import quote
 from typing import List, Dict, Any, Optional
 
 import aiohttp
@@ -11,6 +12,8 @@ from discord.ext import commands
 from dotenv import load_dotenv
 from rapidfuzz import process, fuzz
 
+from availability_service import AvailabilityStore
+
 # -----------------------------
 # Config / startup
 # -----------------------------
@@ -19,6 +22,7 @@ load_dotenv()
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 DISCORD_GUILD_ID = os.getenv("DISCORD_GUILD_ID", "").strip()
 AVAILABILITY_WEB_URL = os.getenv("AVAILABILITY_WEB_URL", "http://127.0.0.1:8000/")
+AVAILABILITY_EDITOR_WEB_URL = os.getenv("AVAILABILITY_EDITOR_WEB_URL", AVAILABILITY_WEB_URL)
 SYNC_GUILD = discord.Object(id=int(DISCORD_GUILD_ID)) if DISCORD_GUILD_ID.isdigit() else None
 # Optional allowlist (comma-separated channel IDs). Leave empty to allow everywhere.
 ALLOWED_CHANNEL_IDS = set(
@@ -31,6 +35,7 @@ INTENTS.guilds = True
 
 bot = commands.Bot(command_prefix="!", intents=INTENTS)
 TREE = bot.tree
+STORE = AvailabilityStore()
 
 # ArkhamDB cache
 CARDS: List[Dict[str, Any]] = []
@@ -563,47 +568,712 @@ async def on_message(message: discord.Message):
 
 @TREE.command(name="availability", description="Open the browser-based availability editor")
 async def availability_cmd(interaction: discord.Interaction):
-    username = interaction.user.name.lower().replace(" ", "-")
-    base_url = AVAILABILITY_WEB_URL.rstrip("/")
-    redirect_url = f"{base_url}/availability/{username}"
+    discord_user_id = str(interaction.user.id)
+    display_name = interaction.user.display_name
+    base_url = AVAILABILITY_EDITOR_WEB_URL.rstrip("/")
+    redirect_url = f"{base_url}/availability/{discord_user_id}?display_name={quote(display_name)}"
+    view = discord.ui.View()
+    view.add_item(discord.ui.Button(label="Open Availability Editor", url=redirect_url))
     await interaction.response.send_message(
-        f"Open the weekly availability editor here: {redirect_url}. "
-        "Select your available times, then click Save to store them for future updates.",
+        "Open your weekly availability editor:",
+        view=view,
         ephemeral=True,
     )
 
+
+def parse_session_length_hours(raw_value: str) -> float:
+    value = float(raw_value.strip())
+    if value <= 0:
+        raise ValueError("Session length must be greater than 0")
+    # Availability slots are 30-minute increments.
+    half_hour_steps = round(value * 2)
+    normalized = half_hour_steps / 2
+    if abs(normalized - value) > 1e-9:
+        raise ValueError("Session length must be in 0.5-hour increments")
+    return normalized
+
+
+def format_session_length_hours(value: float) -> str:
+    return str(int(value)) if abs(value - int(value)) < 1e-9 else f"{value:g}"
+
+
+class GameRoleSelect(discord.ui.RoleSelect):
+    def __init__(self, game_name: str, game_type: str, session_length_hours: float) -> None:
+        super().__init__(
+            placeholder="Select participant role",
+            min_values=1,
+            max_values=1,
+        )
+        self.game_name = game_name
+        self.game_type = game_type
+        self.session_length_hours = session_length_hours
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert self.view is not None
+        view = self.view
+        if not isinstance(view, AddGameRolePickerView):
+            await interaction.response.send_message("Role picker state is invalid.", ephemeral=True)
+            return
+
+        selected = self.values[0] if self.values else None
+        if not isinstance(selected, discord.Role):
+            await interaction.response.send_message("Please choose a valid server role.", ephemeral=True)
+            return
+
+        role = selected
+        if role.is_default() or role.is_bot_managed():
+            await interaction.response.send_message(
+                "Please choose a non-bot server role.",
+                ephemeral=True,
+            )
+            return
+
+        role_id = str(role.id)
+        role_name = role.name
+
+        result = STORE.add_game(
+            self.game_name,
+            self.game_type,
+            self.session_length_hours,
+            role_id=role_id,
+            role_name=role_name,
+        )
+        session_label = format_session_length_hours(self.session_length_hours)
+
+        if result == "created":
+            message = f"Game added: {self.game_name} [{self.game_type}, {session_label}h] with role <@&{role_id}>."
+        elif result == "reactivated":
+            message = f"Game reactivated: {self.game_name} [{self.game_type}, {session_label}h] with role <@&{role_id}>."
+        elif result == "updated":
+            message = f"Game updated: {self.game_name} [{self.game_type}, {session_label}h] now uses role <@&{role_id}>."
+        else:
+            message = f"Game is already active: {self.game_name} [{self.game_type}, {session_label}h] with role <@&{role_id}>."
+
+        for child in view.children:
+            child.disabled = True
+
+        await interaction.response.edit_message(content=message, view=view)
+
+
+class EditGameRoleSelect(discord.ui.RoleSelect):
+    def __init__(
+        self,
+        current_name: str,
+        new_name: str,
+        new_game_type: str,
+        new_session_length_hours: float,
+    ) -> None:
+        super().__init__(
+            placeholder="Select participant role",
+            min_values=1,
+            max_values=1,
+        )
+        self.current_name = current_name
+        self.new_name = new_name
+        self.new_game_type = new_game_type
+        self.new_session_length_hours = new_session_length_hours
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert self.view is not None
+        view = self.view
+        if not isinstance(view, EditGameRolePickerView):
+            await interaction.response.send_message("Role picker state is invalid.", ephemeral=True)
+            return
+
+        selected = self.values[0] if self.values else None
+        if not isinstance(selected, discord.Role):
+            await interaction.response.send_message("Please choose a valid server role.", ephemeral=True)
+            return
+
+        role = selected
+        if role.is_default() or role.is_bot_managed():
+            await interaction.response.send_message(
+                "Please choose a non-bot server role.",
+                ephemeral=True,
+            )
+            return
+
+        role_id = str(role.id)
+        role_name = role.name
+
+        result = STORE.update_game(
+            self.current_name,
+            self.new_name,
+            self.new_game_type,
+            self.new_session_length_hours,
+            role_id=role_id,
+            role_name=role_name,
+        )
+        session_label = format_session_length_hours(self.new_session_length_hours)
+
+        if result == "updated":
+            message = f"Game updated: {self.new_name} [{self.new_game_type}, {session_label}h] with role <@&{role_id}>."
+        elif result == "name_conflict":
+            message = "A game with that name already exists. Please choose a different name."
+        else:
+            message = "Could not find the game to update. Please refresh /admin list_games and try again."
+
+        for child in view.children:
+            child.disabled = True
+
+        await interaction.response.edit_message(content=message, view=view)
+
+
+class AddGameRolePickerView(discord.ui.View):
+    def __init__(self, invoker_id: int, game_name: str, game_type: str, session_length_hours: float) -> None:
+        super().__init__(timeout=120)
+        self.invoker_id = invoker_id
+        self.add_item(
+            GameRoleSelect(
+                game_name=game_name,
+                game_type=game_type,
+                session_length_hours=session_length_hours,
+            )
+        )
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.invoker_id:
+            await interaction.response.send_message("Only the admin who opened this form can submit it.", ephemeral=True)
+            return False
+        return True
+
+    async def on_timeout(self) -> None:
+        for child in self.children:
+            child.disabled = True
+
+
+class EditGameRolePickerView(discord.ui.View):
+    def __init__(
+        self,
+        invoker_id: int,
+        current_name: str,
+        new_name: str,
+        new_game_type: str,
+        new_session_length_hours: float,
+    ) -> None:
+        super().__init__(timeout=120)
+        self.invoker_id = invoker_id
+        self.add_item(
+            EditGameRoleSelect(
+                current_name=current_name,
+                new_name=new_name,
+                new_game_type=new_game_type,
+                new_session_length_hours=new_session_length_hours,
+            )
+        )
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.invoker_id:
+            await interaction.response.send_message("Only the admin who opened this form can submit it.", ephemeral=True)
+            return False
+        return True
+
+    async def on_timeout(self) -> None:
+        for child in self.children:
+            child.disabled = True
+
+
+class AddGameModal(discord.ui.Modal, title="Add Game"):
+    game_name = discord.ui.TextInput(
+        label="Game name",
+        placeholder="The Scarlet Keys Winter '26",
+        required=True,
+        max_length=100,
+    )
+    game_type = discord.ui.TextInput(
+        label="Game type",
+        default="Arkham Horror LCG",
+        required=True,
+        max_length=100,
+    )
+    session_length_hours = discord.ui.TextInput(
+        label="Session length (hours)",
+        default="4",
+        required=True,
+        max_length=8,
+    )
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        if not interaction.guild:
+            await interaction.response.send_message("This command can only be used in a server.", ephemeral=True)
+            return
+
+        cleaned_game_name = str(self.game_name).strip()
+        cleaned_game_type = str(self.game_type).strip()
+        raw_session_length = str(self.session_length_hours).strip()
+        if not cleaned_game_name:
+            await interaction.response.send_message("Game name cannot be empty.", ephemeral=True)
+            return
+        if not cleaned_game_type:
+            await interaction.response.send_message("Game type cannot be empty.", ephemeral=True)
+            return
+        try:
+            session_length_hours = parse_session_length_hours(raw_session_length)
+        except ValueError as exc:
+            await interaction.response.send_message(str(exc), ephemeral=True)
+            return
+
+        view = AddGameRolePickerView(
+            interaction.user.id,
+            cleaned_game_name,
+            cleaned_game_type,
+            session_length_hours,
+        )
+        session_label = format_session_length_hours(session_length_hours)
+        await interaction.response.send_message(
+            f"Choose the participant role for **{cleaned_game_name}** ({cleaned_game_type}, {session_label}h):",
+            view=view,
+            ephemeral=True,
+        )
+
+
+class EditGameModal(discord.ui.Modal, title="Edit Game"):
+    def __init__(
+        self,
+        current_name: str,
+        current_game_type: str,
+        current_session_length_hours: float,
+        invoker_id: int,
+    ) -> None:
+        super().__init__()
+        self.current_name = current_name
+        self.invoker_id = invoker_id
+
+        self.game_name = discord.ui.TextInput(
+            label="Game name",
+            default=current_name,
+            required=True,
+            max_length=100,
+        )
+        self.game_type = discord.ui.TextInput(
+            label="Game type",
+            default=current_game_type or "Arkham Horror LCG",
+            required=True,
+            max_length=100,
+        )
+        self.session_length_hours = discord.ui.TextInput(
+            label="Session length (hours)",
+            default=format_session_length_hours(current_session_length_hours),
+            required=True,
+            max_length=8,
+        )
+        self.add_item(self.game_name)
+        self.add_item(self.game_type)
+        self.add_item(self.session_length_hours)
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        if interaction.user.id != self.invoker_id:
+            await interaction.response.send_message("Only the admin who opened this editor can submit it.", ephemeral=True)
+            return
+
+        cleaned_game_name = str(self.game_name).strip()
+        cleaned_game_type = str(self.game_type).strip()
+        raw_session_length = str(self.session_length_hours).strip()
+        if not cleaned_game_name:
+            await interaction.response.send_message("Game name cannot be empty.", ephemeral=True)
+            return
+        if not cleaned_game_type:
+            await interaction.response.send_message("Game type cannot be empty.", ephemeral=True)
+            return
+        try:
+            session_length_hours = parse_session_length_hours(raw_session_length)
+        except ValueError as exc:
+            await interaction.response.send_message(str(exc), ephemeral=True)
+            return
+
+        view = EditGameRolePickerView(
+            invoker_id=self.invoker_id,
+            current_name=self.current_name,
+            new_name=cleaned_game_name,
+            new_game_type=cleaned_game_type,
+            new_session_length_hours=session_length_hours,
+        )
+        session_label = format_session_length_hours(session_length_hours)
+        await interaction.response.send_message(
+            f"Choose the participant role for **{cleaned_game_name}** ({cleaned_game_type}, {session_label}h):",
+            view=view,
+            ephemeral=True,
+        )
+
+
+class GameEditButton(discord.ui.Button):
+    def __init__(self, invoker_id: int, game: dict[str, str | None]) -> None:
+        name = (game.get("name") or "Unknown game").strip()
+        game_type = (game.get("game_type") or "Unknown type").strip()
+        role_name = (game.get("role_name") or "No role").strip()
+        session_length_hours = float(game.get("session_length_hours") or 4)
+        session_label = format_session_length_hours(session_length_hours)
+        label = f"{name} | {game_type} {session_label}h | {role_name}"
+        super().__init__(
+            label=label[:80],
+            style=discord.ButtonStyle.secondary,
+        )
+        self.invoker_id = invoker_id
+        self.game_name = name
+        self.game_type = game_type
+        self.session_length_hours = session_length_hours
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        if interaction.user.id != self.invoker_id:
+            await interaction.response.send_message("Only the admin who opened this list can edit these games.", ephemeral=True)
+            return
+
+        await interaction.response.send_modal(
+            EditGameModal(
+                current_name=self.game_name,
+                current_game_type=self.game_type,
+                current_session_length_hours=self.session_length_hours,
+                invoker_id=self.invoker_id,
+            )
+        )
+
+
+class GameListView(discord.ui.View):
+    def __init__(self, invoker_id: int, games: list[dict[str, str | None]]) -> None:
+        super().__init__(timeout=180)
+        self.invoker_id = invoker_id
+
+        for game in games[:25]:
+            self.add_item(GameEditButton(invoker_id=invoker_id, game=game))
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.invoker_id:
+            await interaction.response.send_message("Only the admin who opened this list can use these buttons.", ephemeral=True)
+            return False
+        return True
+
+    async def on_timeout(self) -> None:
+        for child in self.children:
+            child.disabled = True
+
+
+class HeatmapGameSelect(discord.ui.Select):
+    def __init__(self, games: list[dict[str, str | None]]) -> None:
+        options: list[discord.SelectOption] = []
+        for game in games[:25]:
+            game_name = str(game.get("name") or "Unknown game")
+            game_type = str(game.get("game_type") or "Unknown type")
+            role_name = str(game.get("role_name") or "No role")
+            options.append(
+                discord.SelectOption(
+                    label=f"{game_name} [{game_type}]"[:100],
+                    description=f"Role: {role_name}"[:100],
+                    value=game_name,
+                )
+            )
+
+        super().__init__(
+            placeholder="Choose a game",
+            min_values=1,
+            max_values=1,
+            options=options,
+        )
+        self.games = games
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert self.view is not None
+        if not isinstance(self.view, HeatmapGamePickerView):
+            await interaction.response.send_message("Heatmap picker state is invalid.", ephemeral=True)
+            return
+
+        selected_game_name = self.values[0]
+        game = next((item for item in self.games if item.get("name") == selected_game_name), None)
+        if not game:
+            await interaction.response.send_message("Selected game was not found.", ephemeral=True)
+            return
+
+        # Reload the selected game from storage at click-time to avoid stale picker snapshots.
+        latest_game = next(
+            (item for item in STORE.list_games(active_only=True) if item.get("name") == selected_game_name),
+            None,
+        )
+        if latest_game:
+            game = latest_game
+
+        if not interaction.guild:
+            await interaction.response.send_message("This command can only be used in a server.", ephemeral=True)
+            return
+
+        role_id = str(game.get("role_id") or "")
+        if not role_id.isdigit():
+            await interaction.response.send_message("Selected game has no valid role configured.", ephemeral=True)
+            return
+
+        role = interaction.guild.get_role(int(role_id))
+        if not role:
+            await interaction.response.send_message("The role configured for this game no longer exists.", ephemeral=True)
+            return
+
+        role_participants = sorted(
+            {
+                str(member.id)
+                for member in role.members
+                if not member.bot
+            }
+        )
+        context_id = STORE.create_heatmap_context(
+            game_name=str(game.get("name") or ""),
+            participant_user_ids=role_participants,
+            session_length_hours=float(game.get("session_length_hours") or 4),
+            guild_id=str(interaction.guild.id),
+            role_id=role_id,
+        )
+
+        base_url = AVAILABILITY_WEB_URL.rstrip("/")
+        heatmap_url = f"{base_url}/heatmap?context={context_id}"
+        view = discord.ui.View()
+        view.add_item(discord.ui.Button(label="Open Heatmap", url=heatmap_url))
+
+        available_users = set(STORE.list_user_ids())
+        group_a_count = len(role_participants)
+        group_b_count = len(available_users - set(role_participants))
+        game_type = str(game.get("game_type") or "Unknown type")
+        await interaction.response.send_message(
+            (
+                f"Heatmap ready for **{selected_game_name}** ({game_type}). "
+                f"Group A role members: {group_a_count}. "
+                f"Group B other users with availability: {group_b_count}."
+            ),
+            view=view,
+            ephemeral=True,
+        )
+
+
+class HeatmapGamePickerView(discord.ui.View):
+    def __init__(self, invoker_id: int, games: list[dict[str, str | None]]) -> None:
+        super().__init__(timeout=120)
+        self.invoker_id = invoker_id
+        self.add_item(HeatmapGameSelect(games=games))
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.invoker_id:
+            await interaction.response.send_message("Only the user who opened this picker can use it.", ephemeral=True)
+            return False
+        return True
+
+    async def on_timeout(self) -> None:
+        for child in self.children:
+            child.disabled = True
+
+
+class RemoveGameSelect(discord.ui.Select):
+    def __init__(self, games: list[dict[str, str | None]]) -> None:
+        options: list[discord.SelectOption] = []
+        for game in games[:25]:
+            game_name = str(game.get("name") or "Unknown game")
+            game_type = str(game.get("game_type") or "Unknown type")
+            role_name = str(game.get("role_name") or "No role")
+            options.append(
+                discord.SelectOption(
+                    label=game_name[:100],
+                    description=f"{game_type} | Role: {role_name}"[:100],
+                    value=game_name,
+                )
+            )
+
+        super().__init__(
+            placeholder="Choose a game to remove",
+            min_values=1,
+            max_values=1,
+            options=options,
+        )
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        assert self.view is not None
+        if not isinstance(self.view, RemoveGamePickerView):
+            await interaction.response.send_message("Remove-game picker state is invalid.", ephemeral=True)
+            return
+
+        selected_game_name = self.values[0]
+        confirm_view = RemoveGameConfirmView(
+            invoker_id=self.view.invoker_id,
+            game_name=selected_game_name,
+        )
+        await interaction.response.edit_message(
+            content=(
+                f"Confirm removal of **{selected_game_name}**?\n"
+                "This marks the game inactive (it is not deleted)."
+            ),
+            view=confirm_view,
+        )
+
+
+class RemoveGameConfirmView(discord.ui.View):
+    def __init__(self, invoker_id: int, game_name: str) -> None:
+        super().__init__(timeout=120)
+        self.invoker_id = invoker_id
+        self.game_name = game_name
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.invoker_id:
+            await interaction.response.send_message("Only the admin who opened this prompt can use it.", ephemeral=True)
+            return False
+        return True
+
+    async def on_timeout(self) -> None:
+        for child in self.children:
+            child.disabled = True
+
+    @discord.ui.button(label="Confirm Remove", style=discord.ButtonStyle.danger)
+    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        try:
+            result = STORE.remove_game(self.game_name)
+        except ValueError as exc:
+            await interaction.response.edit_message(content=str(exc), view=None)
+            return
+
+        for child in self.children:
+            child.disabled = True
+
+        if result == "deactivated":
+            message = f"Game marked inactive: {self.game_name.strip()}"
+        elif result == "already_inactive":
+            message = f"Game is already inactive: {self.game_name.strip()}"
+        else:
+            message = f"Game not found: {self.game_name.strip()}"
+
+        await interaction.response.edit_message(content=message, view=self)
+
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary)
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        for child in self.children:
+            child.disabled = True
+        await interaction.response.edit_message(content="Removal cancelled.", view=self)
+
+
+class RemoveGamePickerView(discord.ui.View):
+    def __init__(self, invoker_id: int, games: list[dict[str, str | None]]) -> None:
+        super().__init__(timeout=120)
+        self.invoker_id = invoker_id
+        self.add_item(RemoveGameSelect(games=games))
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.invoker_id:
+            await interaction.response.send_message("Only the admin who opened this prompt can use it.", ephemeral=True)
+            return False
+        return True
+
+    async def on_timeout(self) -> None:
+        for child in self.children:
+            child.disabled = True
+
+
+def is_server_admin(interaction: discord.Interaction) -> bool:
+    if not interaction.guild:
+        return False
+
+    member = interaction.user
+    if isinstance(member, discord.Member):
+        return member.guild_permissions.administrator
+
+    permissions = getattr(interaction, "permissions", None)
+    return bool(permissions and permissions.administrator)
+
 admin_group = app_commands.Group(name="admin", description="Admin tools for managing games and availability")
 
+@app_commands.guild_only()
+@app_commands.default_permissions(administrator=True)
 @admin_group.command(name="add_game", description="Add a game to the available list")
 async def admin_add_game_cmd(interaction: discord.Interaction):
-    await interaction.response.send_message("Feature coming soon.", ephemeral=True)
+    if not is_server_admin(interaction):
+        await interaction.response.send_message("Only server administrators can use this command.", ephemeral=True)
+        return
 
+    await interaction.response.send_modal(AddGameModal())
+
+@app_commands.guild_only()
+@app_commands.default_permissions(administrator=True)
 @admin_group.command(name="remove_game", description="Remove a game from the available list")
 async def admin_remove_game_cmd(interaction: discord.Interaction):
-    await interaction.response.send_message("Feature coming soon.", ephemeral=True)
+    if not is_server_admin(interaction):
+        await interaction.response.send_message("Only server administrators can use this command.", ephemeral=True)
+        return
 
+    games = STORE.list_games(active_only=True)
+    if not games:
+        await interaction.response.send_message("No active games are configured.", ephemeral=True)
+        return
+
+    view = RemoveGamePickerView(invoker_id=interaction.user.id, games=games)
+    extra_note = "" if len(games) <= 25 else " Showing first 25 games."
+    await interaction.response.send_message(
+        f"Choose a game to remove.{extra_note}",
+        view=view,
+        ephemeral=True,
+    )
+
+@app_commands.guild_only()
+@app_commands.default_permissions(administrator=True)
 @admin_group.command(name="list_games", description="List the currently available games")
 async def admin_list_games_cmd(interaction: discord.Interaction):
-    await interaction.response.send_message("Feature coming soon.", ephemeral=True)
+    if not is_server_admin(interaction):
+        await interaction.response.send_message("Only server administrators can use this command.", ephemeral=True)
+        return
+
+    games = STORE.list_games(active_only=True)
+    if not games:
+        await interaction.response.send_message("No active games are configured.", ephemeral=True)
+        return
+
+    view = GameListView(invoker_id=interaction.user.id, games=games)
+    extra_note = "" if len(games) <= 25 else "\nShowing first 25 games."
+    await interaction.response.send_message(
+        f"Select a game to edit.{extra_note}",
+        view=view,
+        ephemeral=True,
+    )
 
 TREE.add_command(admin_group)
 
 @TREE.command(name="heatmap", description="Show availability heatmap for a game")
 async def heatmap_cmd(interaction: discord.Interaction):
-    await interaction.response.send_message("Feature coming soon.", ephemeral=True)
+    games = STORE.list_games(active_only=True)
+    if not games:
+        await interaction.response.send_message("No active games are configured yet.", ephemeral=True)
+        return
 
-@TREE.command(name="recommend_times", description="Recommend strong times for a game")
-async def recommend_times_cmd(interaction: discord.Interaction):
-    await interaction.response.send_message("Feature coming soon.", ephemeral=True)
+    view = HeatmapGamePickerView(invoker_id=interaction.user.id, games=games)
+    extra_note = "" if len(games) <= 25 else " Showing first 25 games."
+    await interaction.response.send_message(
+        f"Choose a game for the heatmap.{extra_note}",
+        view=view,
+        ephemeral=True,
+    )
 
 @TREE.command(name="hi", description="Introduce the bot")
 async def hi_cmd(interaction: discord.Interaction):
-    await interaction.response.defer()
-    await interaction.followup.send(
-        "Hi, I am a bot used to lookup arkham related decks and cards. "
-        "I also can be used to handle availability and produce a heat map, "
-        "and for some cool polls and other features."
+    help_text = (
+        "Agent of the King - Arkham LCG helper\n\n"
+        "USAGE\n"
+        "  /hi\n"
+        "  /availability\n"
+        "  /heatmap\n"
+        "  /reload_cards\n"
+        "  /sync_commands\n\n"
+        "DESCRIPTION\n"
+        "  Discord bot for Arkham Horror LCG card/deck lookup and weekly availability planning.\n\n"
+        "COMMANDS\n"
+        "  /availability      Open your personal weekly availability editor link.\n"
+        "  /heatmap           Open the shared weekly heatmap view.\n"
+        "  /reload_cards      Refresh ArkhamDB card cache.\n"
+        "  /sync_commands     Force slash-command sync with Discord.\n"
+        "  /admin add_game    Admin only: add or reactivate a game.\n"
+        "  /admin remove_game Admin only: mark a game inactive.\n"
+        "  /admin list_games  Admin only: list active games.\n\n"
+        "MESSAGE FEATURES\n"
+        "  [[card name]]                     Lookup card by name.\n"
+        "  [[Card Name (0)]]                 Filter by exact XP level.\n"
+        "  [[Card Name (u)]]                 Prefer upgraded versions.\n"
+        "  https://arkhamdb.com/deck/view/... Expand deck into embeds.\n"
+        "  https://arkhamdb.com/decklist/...  Expand decklist into embeds.\n\n"
+        "EXAMPLES\n"
+        "  [[Deduction]]\n"
+        "  [[.41 Derringer (0)]]\n"
+        "  [[Shrivelling (u)]]\n"
+        "  /availability\n"
+        "  /heatmap"
     )
+    await interaction.response.send_message(f"```\n{help_text}\n```", ephemeral=True)
 
 
 @TREE.command(name="sync_commands", description="Force a slash-command sync with Discord")

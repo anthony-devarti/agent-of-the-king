@@ -34,10 +34,7 @@ This is the full current slash-command surface in the bot.
     Opens the browser-based weekly availability editor for the invoking Discord user. The bot returns a user-specific editor URL.
 
 * `/heatmap`
-    Currently a placeholder. It responds with `Feature coming soon.`
-
-* `/recommend_times`
-    Currently a placeholder. It responds with `Feature coming soon.`
+    Opens the shared availability heatmap page in a button link.
 
 * `/hi`
     Sends a short introduction describing the bot's ArkhamDB and availability capabilities.
@@ -49,13 +46,13 @@ This is the full current slash-command surface in the bot.
     Reloads the ArkhamDB card cache without restarting the bot.
 
 * `/admin add_game`
-    Currently a placeholder. It responds with `Feature coming soon.`
+    Server-admin only. Opens a form to capture game name, then lets the admin choose the participant role from server roles (excluding bot-managed roles). Adds the game to the active list or reactivates it if previously inactive.
 
 * `/admin remove_game`
-    Currently a placeholder. It responds with `Feature coming soon.`
+    Server-admin only. Opens a game dropdown and requires a confirmation click before marking a game inactive.
 
 * `/admin list_games`
-    Currently a placeholder. It responds with `Feature coming soon.`
+    Server-admin only. Lists active games.
 
 ## HTTP Routes
 
@@ -74,7 +71,7 @@ The availability app currently exposes these routes:
     Saves availability for a user using form fields `user_id` and `selected_slots`.
 
 * `/heatmap`
-    Renders the read-only heatmap page using persisted data and seeded heatmap users.
+    Renders the read-only heatmap page using persisted data and real users with saved availability.
 
 ## Tech Stack
 
@@ -110,6 +107,7 @@ The bot reads:
 * `DISCORD_TOKEN`
 * `DISCORD_GUILD_ID` optional, for guild-specific slash sync
 * `AVAILABILITY_WEB_URL` optional, defaults to `http://127.0.0.1:8000/`
+* `AVAILABILITY_EDITOR_WEB_URL` optional, defaults to `AVAILABILITY_WEB_URL` and is used by `/availability` editor links
 * `ALLOWED_CHANNEL_IDS` optional, comma-separated allowlist
 
 If using a local `.env` file:
