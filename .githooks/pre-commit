@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+print_block_message() {
+  cat <<'EOF'
+
+ERROR: Potential credential leak detected in staged changes.
+
+You must rotate the exposed token now.
+
+What to do next:
+1) Rotate the token in Discord Developer Portal (Bot -> Reset Token).
+2) Update local .env with the new token (do not commit .env).
+3) Remove secret-bearing files from the index:
+   git rm --cached .env
+4) Unstage accidental secret lines or files:
+   git restore --staged <file>
+5) Re-commit only safe files and push again.
+
+Tip: keep placeholders in .env.example and real credentials only in local .env.
+
+EOF
+}
+
+if git diff --cached --name-status | grep -E '^[^D]\s+\.env$' >/dev/null; then
+  echo "Blocked: .env is staged (added or modified)."
+  print_block_message
+  exit 1
+fi
+
+staged_patch="$(git diff --cached -U0 -- . ':(exclude).env.example' || true)"
+
+if [[ -z "$staged_patch" ]]; then
+  exit 0
+fi
+
+# Match added lines that look like token/secret assignments.
+if printf '%s\n' "$staged_patch" | grep -E '^\+.*(DISCORD_TOKEN|BOT_TOKEN|CLIENT_SECRET|TOKEN|SECRET)\s*[:=]\s*["'"'"']?[^"'"'"'[:space:]]{16,}' >/dev/null; then
+  echo "Blocked: secret-like assignment found in staged diff."
+  print_block_message
+  exit 1
+fi
+
+# Match likely Discord token format in added lines.
+if printf '%s\n' "$staged_patch" | grep -E '^\+.*[MN][A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{20,}' >/dev/null; then
+  echo "Blocked: Discord-token-like value found in staged diff."
+  print_block_message
+  exit 1
+fi
+
+exit 0

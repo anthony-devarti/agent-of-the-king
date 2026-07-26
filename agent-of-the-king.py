@@ -17,6 +17,9 @@ from rapidfuzz import process, fuzz
 load_dotenv()
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
+DISCORD_GUILD_ID = os.getenv("DISCORD_GUILD_ID", "").strip()
+AVAILABILITY_WEB_URL = os.getenv("AVAILABILITY_WEB_URL", "http://127.0.0.1:8000/")
+SYNC_GUILD = discord.Object(id=int(DISCORD_GUILD_ID)) if DISCORD_GUILD_ID.isdigit() else None
 # Optional allowlist (comma-separated channel IDs). Leave empty to allow everywhere.
 ALLOWED_CHANNEL_IDS = set(
     int(x.strip()) for x in os.getenv("ALLOWED_CHANNEL_IDS", "").split(",") if x.strip().isdigit()
@@ -50,6 +53,55 @@ DECK_URL_RE = re.compile(
     r"(https?://)?(www\.)?arkhamdb\.com/(deck/view|decklist/view)/([^\s\])\)]*)",
     re.IGNORECASE,
 )
+
+DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+TIME_SLOTS = [f"{hour:02d}:{minute:02d}" for hour in range(24) for minute in (0, 30)]
+
+
+def build_availability_grid_template() -> str:
+    days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    times = [f"{hour:02d}:{minute:02d}" for hour in range(24) for minute in (0, 30)]
+    header = "Time | " + " | ".join(days)
+    divider = "---- | " + " | ".join(["---"] * len(days))
+    rows = ["Availability Grid Template", header, divider]
+    for slot in times:
+        rows.append(f"{slot} | . | . | . | . | . | . | .")
+    return "\n".join(rows)
+
+
+class AvailabilityModal(discord.ui.Modal):
+    def __init__(self) -> None:
+        super().__init__(title="Availability Grid")
+        grid_template = build_availability_grid_template()
+        self.availability_input = discord.ui.TextInput(
+            label="7 days × 48 half-hour slots",
+            required=True,
+            style=discord.TextStyle.paragraph,
+            default=grid_template,
+            placeholder="Enter your availability grid",
+        )
+        self.availability_input._value = grid_template
+        self.availability_input._underlying.value = grid_template
+        self.add_item(self.availability_input)
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        grid_text = self.availability_input.value.strip()
+        if not grid_text:
+            await interaction.response.send_message("No availability grid was entered.", ephemeral=True)
+            return
+
+        lines = [line for line in grid_text.splitlines() if line.strip()]
+        row_count = max(0, len(lines) - 2)
+        await interaction.response.send_message(
+            f"Availability grid received with {row_count} time rows.",
+            ephemeral=True,
+        )
+
+    async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
+        await interaction.response.send_message(
+            "Something went wrong while opening the availability form.",
+            ephemeral=True,
+        )
 
 # -----------------------------
 # Utilities
@@ -410,14 +462,27 @@ async def send_embeds_in_batches(target: discord.abc.Messageable, embeds: List[d
 # -----------------------------
 # Bot events / commands
 # -----------------------------
+async def sync_app_commands() -> None:
+    try:
+        if SYNC_GUILD is not None:
+            synced = await TREE.sync(guild=SYNC_GUILD)
+            print(f"Synced {len(synced)} guild app commands for guild {SYNC_GUILD.id}")
+        else:
+            synced = await TREE.sync()
+            print(f"Synced {len(synced)} global app commands")
+    except Exception as exc:
+        print(f"Failed to sync app commands: {exc}")
+
+
 @bot.event
 async def on_ready():
-    # Load cards once on startup
-    await load_cards()
+    # Load cards once on startup, but do not block slash command registration if it fails.
     try:
-        await TREE.sync()
-    except Exception:
-        pass
+        await load_cards()
+    except Exception as exc:
+        print(f"Failed to load card cache: {exc}")
+
+    await sync_app_commands()
     print(f"Logged in as {bot.user} (ID: {bot.user.id})")
 
 
@@ -495,6 +560,63 @@ async def on_message(message: discord.Message):
             await message.add_reaction("🃏")
     except Exception as e:
         await message.reply(f"Failed to send response: {e}")
+
+@TREE.command(name="availability", description="Open the browser-based availability editor")
+async def availability_cmd(interaction: discord.Interaction):
+    username = interaction.user.name.lower().replace(" ", "-")
+    base_url = AVAILABILITY_WEB_URL.rstrip("/")
+    redirect_url = f"{base_url}/availability/{username}"
+    await interaction.response.send_message(
+        f"Open the weekly availability editor here: {redirect_url}. "
+        "Select your available times, then click Save to store them for future updates.",
+        ephemeral=True,
+    )
+
+admin_group = app_commands.Group(name="admin", description="Admin tools for managing games and availability")
+
+@admin_group.command(name="add_game", description="Add a game to the available list")
+async def admin_add_game_cmd(interaction: discord.Interaction):
+    await interaction.response.send_message("Feature coming soon.", ephemeral=True)
+
+@admin_group.command(name="remove_game", description="Remove a game from the available list")
+async def admin_remove_game_cmd(interaction: discord.Interaction):
+    await interaction.response.send_message("Feature coming soon.", ephemeral=True)
+
+@admin_group.command(name="list_games", description="List the currently available games")
+async def admin_list_games_cmd(interaction: discord.Interaction):
+    await interaction.response.send_message("Feature coming soon.", ephemeral=True)
+
+TREE.add_command(admin_group)
+
+@TREE.command(name="heatmap", description="Show availability heatmap for a game")
+async def heatmap_cmd(interaction: discord.Interaction):
+    await interaction.response.send_message("Feature coming soon.", ephemeral=True)
+
+@TREE.command(name="recommend_times", description="Recommend strong times for a game")
+async def recommend_times_cmd(interaction: discord.Interaction):
+    await interaction.response.send_message("Feature coming soon.", ephemeral=True)
+
+@TREE.command(name="hi", description="Introduce the bot")
+async def hi_cmd(interaction: discord.Interaction):
+    await interaction.response.defer()
+    await interaction.followup.send(
+        "Hi, I am a bot used to lookup arkham related decks and cards. "
+        "I also can be used to handle availability and produce a heat map, "
+        "and for some cool polls and other features."
+    )
+
+
+@TREE.command(name="sync_commands", description="Force a slash-command sync with Discord")
+async def sync_commands_cmd(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True)
+    try:
+        await sync_app_commands()
+        await interaction.followup.send(
+            "Slash commands were synced. They may take a moment to appear in Discord.",
+            ephemeral=True,
+        )
+    except Exception as exc:
+        await interaction.followup.send(f"Sync failed: {exc}", ephemeral=True)
 
 
 # Optional: simple slash command to reload cards cache

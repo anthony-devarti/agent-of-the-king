@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Availability Editor</title>
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    {% macro format_slot_range(slot) -%}
+      {% set start_hour = slot[:2]|int %}
+      {% set start_minute = slot[3:5]|int %}
+      {% set end_hour = start_hour %}
+      {% set end_minute = start_minute + 30 %}
+      {% if end_minute >= 60 %}
+        {% set end_hour = start_hour + 1 %}
+        {% set end_minute = end_minute - 60 %}
+      {% endif %}
+      {% set end_hour = end_hour % 24 %}
+      {% set start_hour_12 = start_hour % 12 %}
+      {% set end_hour_12 = end_hour % 12 %}
+      {% set start_hour_display = 12 if start_hour_12 == 0 else start_hour_12 %}
+      {% set end_hour_display = 12 if end_hour_12 == 0 else end_hour_12 %}
+      {% set start_suffix = 'AM' if start_hour < 12 else 'PM' %}
+      {% set end_suffix = 'AM' if end_hour < 12 else 'PM' %}
+      {{ '%d:%02d%s-%d:%02d%s'|format(start_hour_display, start_minute, start_suffix, end_hour_display, end_minute, end_suffix) }}
+    {%- endmacro %}
+    <main class="page-shell">
+      <section class="hero-card">
+        <h1>{{ 'Weekly Availability' if heatmap else 'Weekly Availability' }}</h1>
+        <p>{{ 'Select the windows you are free to play this week.' if not heatmap else 'View how many people are available for each time slot.' }}</p>
+      </section>
+
+      <section class="toolbar-card">
+        {% if heatmap %}
+        <div class="identity-card">
+          <span class="identity-label">View</span>
+          <span class="identity-value">Availability</span>
+        </div>
+        <div id="user-availability-data" class="user-filter-row" data-users='{{ heatmap_users|tojson }}' data-slot-users='{{ slot_user_map|tojson }}'>
+          {% for user in heatmap_users %}
+          <div class="user-chip">
+            <button class="user-toggle" type="button" data-user-id="{{ user.id }}" aria-pressed="{{ 'true' if user.active else 'false' }}">
+              <span class="user-toggle-dot {{ 'is-active' if user.active else 'is-dimmed' }}"></span>
+              <span class="user-toggle-label">{{ user.name }}</span>
+            </button>
+            <button class="user-lock-toggle" type="button" data-user-id="{{ user.id }}" aria-pressed="false" title="Lock this user for recommendations">
+              <span class="user-lock-icon" aria-hidden="true">🔓</span>
+            </button>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <form id="availability-form">
+          <div class="identity-card">
+            <span class="identity-label">User</span>
+            <span class="identity-value">{{ user_id or 'local-user' }}</span>
+          </div>
+          <input id="user-id" name="user_id" type="hidden" value="{{ user_id or 'local-user' }}" {% if user_readonly %}readonly{% endif %} />
+          <input id="user-id-hidden" name="user_id" type="hidden" value="{{ user_id or 'local-user' }}" {% if user_readonly %}readonly{% endif %} />
+          <input id="selected-slots" name="selected_slots" type="hidden" value="" />
+          <button id="save-button" type="submit">Save</button>
+        </form>
+        {% endif %}
+
+        <div id="status" class="status">{{ 'Ready' if heatmap else 'Ready' }}</div>
+      </section>
+
+      <section class="matrix-card">
+        <div class="matrix-header">
+          <h2>{{ 'Availability Matrix' if heatmap else 'Availability Matrix' }}</h2>
+          <span class="matrix-hint">{{ 'Brighter cells indicate more people are available.' if heatmap else 'Tap any slot to light it up as available.' }}</span>
+        </div>
+        {% if heatmap %}
+        <div id="recommendation-summary" class="recommendation-summary" data-time-slots='{{ time_slots|tojson }}'>
+          <span class="recommendation-label">Live recommendation</span>
+          <strong>Checking the best 4-hour block…</strong>
+        </div>
+        {% endif %}
+        <div class="availability-grid" role="grid" aria-label="Weekly availability">
+          <div class="grid-header time-header">Time</div>
+          {% for day in weekdays %}
+          <div class="grid-header" data-day="{{ day }}" data-short-day="{{ day[:3] }}">{{ day[:3] }}</div>
+          {% endfor %}
+
+          <div class="section-block">
+            <div class="section-header" data-section="morning" data-group="morning" role="button" tabindex="0" aria-expanded="false">
+              <span>Morning</span>
+              <div class="section-indicators" aria-hidden="true">
+                {% for day in weekdays %}
+                <span class="section-indicator" data-day="{{ day }}">{{ day[:2] if day != 'Thursday' else 'Th' }}</span>
+                {% endfor %}
+              </div>
+              <span class="section-status">Not available</span>
+              <span class="section-chevron" aria-hidden="true">⌄</span>
+            </div>
+            <div class="section-body is-collapsed">
+              {% for slot in time_slots if slot[:2]|int >= 3 and slot[:2]|int < 12 %}
+              <div class="slot-row morning-row">
+                <div class="slot-label">{{ format_slot_range(slot) }}</div>
+                {% for day in weekdays %}
+                <div
+                  class="slot-box"
+                  role="button"
+                  tabindex="0"
+                  data-day="{{ day }}"
+                  data-slot="{{ slot }}"
+                  data-active="{{ 'true' if heatmap and slot_counts.get(day ~ ':' ~ slot, 0) > 0 else 'false' }}"
+                  data-heatmap="{{ 'true' if heatmap else 'false' }}"
+                  data-count="{{ slot_counts.get(day ~ ':' ~ slot, 0) if heatmap else '' }}"
+                ></div>
+                {% endfor %}
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="section-block">
+            <div class="section-header" data-section="afternoon" data-group="afternoon" role="button" tabindex="0" aria-expanded="false">
+              <span>Afternoon</span>
+              <div class="section-indicators" aria-hidden="true">
+                {% for day in weekdays %}
+                <span class="section-indicator" data-day="{{ day }}">{{ day[:2] if day != 'Thursday' else 'Th' }}</span>
+                {% endfor %}
+              </div>
+              <span class="section-status">Not available</span>
+              <span class="section-chevron" aria-hidden="true">⌄</span>
+            </div>
+            <div class="section-body is-collapsed">
+              {% for slot in time_slots if slot[:2]|int >= 12 and slot[:2]|int < 18 %}
+              <div class="slot-row afternoon-row">
+                <div class="slot-label">{{ format_slot_range(slot) }}</div>
+                {% for day in weekdays %}
+                <div
+                  class="slot-box"
+                  role="button"
+                  tabindex="0"
+                  data-day="{{ day }}"
+                  data-slot="{{ slot }}"
+                  data-active="{{ 'true' if heatmap and slot_counts.get(day ~ ':' ~ slot, 0) > 0 else 'false' }}"
+                  data-heatmap="{{ 'true' if heatmap else 'false' }}"
+                  data-count="{{ slot_counts.get(day ~ ':' ~ slot, 0) if heatmap else '' }}"
+                ></div>
+                {% endfor %}
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="section-block">
+            <div class="section-header" data-section="night" data-group="night" role="button" tabindex="0" aria-expanded="true">
+              <span>Night</span>
+              <div class="section-indicators" aria-hidden="true">
+                {% for day in weekdays %}
+                <span class="section-indicator" data-day="{{ day }}">{{ day[:2] if day != 'Thursday' else 'Th' }}</span>
+                {% endfor %}
+              </div>
+              <span class="section-status">Not available</span>
+              <span class="section-chevron" aria-hidden="true">⌄</span>
+            </div>
+            <div class="section-body">
+              {% for slot in time_slots if slot[:2]|int >= 18 %}
+              <div class="slot-row night-row">
+                <div class="slot-label">{{ format_slot_range(slot) }}</div>
+                {% for day in weekdays %}
+                <div
+                  class="slot-box"
+                  role="button"
+                  tabindex="0"
+                  data-day="{{ day }}"
+                  data-slot="{{ slot }}"
+                  data-active="{{ 'true' if heatmap and slot_counts.get(day ~ ':' ~ slot, 0) > 0 else 'false' }}"
+                  data-heatmap="{{ 'true' if heatmap else 'false' }}"
+                  data-count="{{ slot_counts.get(day ~ ':' ~ slot, 0) if heatmap else '' }}"
+                ></div>
+                {% endfor %}
+              </div>
+              {% endfor %}
+              {% for slot in time_slots if slot[:2]|int < 3 %}
+              <div class="slot-row night-row">
+                <div class="slot-label">{{ format_slot_range(slot) }}</div>
+                {% for day in weekdays %}
+                <div
+                  class="slot-box"
+                  role="button"
+                  tabindex="0"
+                  data-day="{{ day }}"
+                  data-slot="{{ slot }}"
+                  data-active="{{ 'true' if heatmap and slot_counts.get(day ~ ':' ~ slot, 0) > 0 else 'false' }}"
+                  data-heatmap="{{ 'true' if heatmap else 'false' }}"
+                  data-count="{{ slot_counts.get(day ~ ':' ~ slot, 0) if heatmap else '' }}"
+                ></div>
+                {% endfor %}
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>
