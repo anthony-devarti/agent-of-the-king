@@ -152,3 +152,6 @@ This repository includes a `Dockerfile` for containerized runs.
 Typical usage:
 * `docker build -t agent-of-the-king ./`
 * `docker run --name agent-of-the-king --restart always -d agent-of-the-king`
+
+Published GHCR image:
+* `ghcr.io/anthony-devarti/agent-of-the-king:latest`
