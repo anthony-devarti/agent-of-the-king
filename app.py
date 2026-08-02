@@ -121,26 +121,37 @@ async def build_heatmap_users(context: dict[str, object] | None) -> tuple[list[d
                         "id": user_id,
                         "name": str(member.get("name") or user_id),
                         "group": "A",
-                        "group_label": "Group A - Game role members",
+                        "group_label": "Game participants",
                         "active": has_availability,
                         "selectable": has_availability,
                     }
                 )
         else:
             # Fallback when live Discord lookup fails.
+            participant_name_by_id: dict[str, str] = {}
+            for participant in context.get("participant_users", []):
+                if not isinstance(participant, dict):
+                    continue
+                participant_id = str(participant.get("id") or "").strip()
+                if not is_discord_user_id(participant_id):
+                    continue
+                participant_name = str(participant.get("name") or participant_id).strip() or participant_id
+                participant_name_by_id[participant_id] = participant_name
+
             group_a_ids = {
                 str(user_id)
                 for user_id in context.get("participant_user_ids", [])
                 if is_discord_user_id(str(user_id))
             }
+            group_a_ids.update(participant_name_by_id.keys())
             for user_id in sorted(group_a_ids):
                 has_availability = user_id in saved_users
                 users.append(
                     {
                         "id": user_id,
-                        "name": user_id,
+                        "name": participant_name_by_id.get(user_id, user_id),
                         "group": "A",
-                        "group_label": "Group A - Game role members",
+                        "group_label": "Game participants",
                         "active": has_availability,
                         "selectable": has_availability,
                     }
@@ -152,7 +163,7 @@ async def build_heatmap_users(context: dict[str, object] | None) -> tuple[list[d
                     "id": user_id,
                     "name": user_id,
                     "group": "B",
-                    "group_label": "Group B - Other users with availability",
+                    "group_label": "Other users with availability",
                     "active": False,
                     "selectable": True,
                 }
@@ -167,7 +178,7 @@ async def build_heatmap_users(context: dict[str, object] | None) -> tuple[list[d
             "id": user_id,
             "name": user_id,
             "group": "B",
-            "group_label": "Group B - Other users with availability",
+            "group_label": "Other users with availability",
             "active": True,
             "selectable": True,
         }

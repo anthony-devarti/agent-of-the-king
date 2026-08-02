@@ -225,6 +225,38 @@ def test_heatmap_group_a_uses_live_discord_ids_and_names_id_only(monkeypatch):
     assert "legacy-name-user" not in group_b_ids
 
 
+def test_heatmap_fallback_uses_context_participant_names(monkeypatch):
+    app.store.save_availability(
+        user_id="555555555555555555",
+        selected_slots={build_slot_id("Wednesday", "14:00")},
+    )
+
+    async def fake_fetch_role_members(guild_id: str, role_id: str):
+        return []
+
+    monkeypatch.setattr(app, "fetch_role_members", fake_fetch_role_members)
+
+    users, _, _ = asyncio.run(
+        app.build_heatmap_users(
+            {
+                "game_name": "Kings Game",
+                "session_length_hours": 4.0,
+                "guild_id": "1",
+                "role_id": "2",
+                "participant_user_ids": ["555555555555555555"],
+                "participant_users": [
+                    {"id": "555555555555555555", "name": "Alice Smith"},
+                ],
+            }
+        )
+    )
+
+    group_a = [user for user in users if user["group"] == "A"]
+    assert len(group_a) == 1
+    assert group_a[0]["id"] == "555555555555555555"
+    assert group_a[0]["name"] == "Alice Smith"
+
+
 def test_heatmap_user_map_uses_discord_ids_only():
     slot_id = build_slot_id("Tuesday", "10:00")
     app.store.save_availability(user_id="444444444444444444", selected_slots={slot_id})
@@ -233,3 +265,23 @@ def test_heatmap_user_map_uses_discord_ids_only():
 
     assert slot_id in user_map
     assert "444444444444444444" in user_map[slot_id]
+
+
+def test_heatmap_user_facing_copy_does_not_expose_group_a_or_group_b_labels():
+    client = TestClient(app.app)
+
+    response = client.get("/heatmap")
+    assert response.status_code == 200
+    body = response.text
+    assert "Group A" not in body
+    assert "Group B" not in body
+
+    app_js = Path(__file__).resolve().parents[1] / "static" / "app.js"
+    content = app_js.read_text()
+    assert "Group A" not in content
+    assert "Group B" not in content
+
+    bot_file = Path(__file__).resolve().parents[1] / "agent-of-the-king.py"
+    bot_content = bot_file.read_text()
+    assert "Group A role members" not in bot_content
+    assert "Group B other users with availability" not in bot_content

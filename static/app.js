@@ -306,8 +306,8 @@ function renderUserFilters() {
 
     const groupKey = user.group || 'B';
     const groupLabel = user.group_label || (groupKey === 'A'
-      ? 'Group A - Game role members'
-      : 'Group B - Other users with availability');
+      ? 'Game participants'
+      : 'Other users with availability');
     if (!grouped.has(groupKey)) {
       grouped.set(groupKey, { label: groupLabel, users: [] });
     }

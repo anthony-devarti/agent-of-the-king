@@ -2,7 +2,7 @@ import os
 import sqlite3
 import json
 import uuid
-from typing import Dict, Set
+from typing import Any, Dict, Set
 
 WEEKDAYS = [
     "Monday",
@@ -33,6 +33,21 @@ def normalize_game_name(name: str) -> str:
 
 def display_game_name(name: str) -> str:
     return " ".join(name.strip().split())
+
+
+def format_clock_label(hour: int, minute: int) -> str:
+    hour_12 = hour % 12 or 12
+    suffix = "AM" if hour < 12 else "PM"
+    return f"{hour_12}:{minute:02d}{suffix}"
+
+
+def format_session_window_label(start_slot: str, session_length_hours: float) -> str:
+    start_hour, start_minute = [int(value) for value in start_slot.split(":")]
+    duration_minutes = int(round(session_length_hours * 60))
+    end_total_minutes = (start_hour * 60 + start_minute + duration_minutes) % (24 * 60)
+    end_hour = end_total_minutes // 60
+    end_minute = end_total_minutes % 60
+    return f"{format_clock_label(start_hour, start_minute)}-{format_clock_label(end_hour, end_minute)}"
 
 
 class AvailabilityStore:
@@ -97,6 +112,7 @@ class AvailabilityStore:
                     guild_id TEXT,
                     role_id TEXT,
                     participant_user_ids_json TEXT NOT NULL,
+                    participant_users_json TEXT,
                     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
                 )
                 """
@@ -124,6 +140,8 @@ class AvailabilityStore:
                 connection.execute("ALTER TABLE heatmap_contexts ADD COLUMN guild_id TEXT")
             if "role_id" not in context_columns:
                 connection.execute("ALTER TABLE heatmap_contexts ADD COLUMN role_id TEXT")
+            if "participant_users_json" not in context_columns:
+                connection.execute("ALTER TABLE heatmap_contexts ADD COLUMN participant_users_json TEXT")
             connection.execute(
                 "UPDATE heatmap_contexts SET session_length_hours = 4 WHERE session_length_hours IS NULL OR session_length_hours <= 0"
             )
@@ -417,11 +435,34 @@ class AvailabilityStore:
         session_length_hours: float,
         guild_id: str | None = None,
         role_id: str | None = None,
+        participant_users: list[dict[str, str]] | None = None,
     ) -> str:
         context_id = str(uuid.uuid4())
         cleaned_game_name = display_game_name(game_name)
         participant_ids = sorted({display_game_name(user_id) for user_id in participant_user_ids if user_id.strip()})
-        payload = json.dumps(participant_ids)
+        participant_ids_payload = json.dumps(participant_ids)
+
+        cleaned_participant_users: list[dict[str, str]] = []
+        participant_users_by_id: dict[str, str] = {}
+        for participant in participant_users or []:
+            participant_id = str(participant.get("id") or "").strip()
+            if not participant_id:
+                continue
+            participant_name = str(participant.get("name") or participant_id).strip() or participant_id
+            participant_users_by_id[participant_id] = participant_name
+
+        for participant_id in participant_ids:
+            participant_users_by_id.setdefault(participant_id, participant_id)
+
+        for participant_id in sorted(participant_users_by_id.keys()):
+            cleaned_participant_users.append(
+                {
+                    "id": participant_id,
+                    "name": participant_users_by_id[participant_id],
+                }
+            )
+
+        participant_users_payload = json.dumps(cleaned_participant_users)
         effective_session_length_hours = session_length_hours if session_length_hours > 0 else 4.0
 
         connection = sqlite3.connect(self.db_path)
@@ -434,9 +475,10 @@ class AvailabilityStore:
                     session_length_hours,
                     guild_id,
                     role_id,
-                    participant_user_ids_json
+                    participant_user_ids_json,
+                    participant_users_json
                 )
-                VALUES (?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     context_id,
@@ -444,7 +486,8 @@ class AvailabilityStore:
                     effective_session_length_hours,
                     guild_id,
                     role_id,
-                    payload,
+                    participant_ids_payload,
+                    participant_users_payload,
                 ),
             )
             connection.commit()
@@ -457,7 +500,7 @@ class AvailabilityStore:
         try:
             row = connection.execute(
                 """
-                SELECT context_id, game_name, session_length_hours, guild_id, role_id, participant_user_ids_json
+                SELECT context_id, game_name, session_length_hours, guild_id, role_id, participant_user_ids_json, participant_users_json
                 FROM heatmap_contexts
                 WHERE context_id = ?
                 """,
@@ -469,6 +512,23 @@ class AvailabilityStore:
             participants = json.loads(row[5]) if row[5] else []
             if not isinstance(participants, list):
                 participants = []
+
+            participant_users_raw = json.loads(row[6]) if len(row) > 6 and row[6] else []
+            cleaned_participant_users: list[dict[str, str]] = []
+            if isinstance(participant_users_raw, list):
+                for participant in participant_users_raw:
+                    if not isinstance(participant, dict):
+                        continue
+                    participant_id = str(participant.get("id") or "").strip()
+                    if not participant_id:
+                        continue
+                    participant_name = str(participant.get("name") or participant_id).strip() or participant_id
+                    cleaned_participant_users.append(
+                        {
+                            "id": participant_id,
+                            "name": participant_name,
+                        }
+                    )
             return {
                 "context_id": row[0],
                 "game_name": row[1],
@@ -476,6 +536,79 @@ class AvailabilityStore:
                 "guild_id": row[3],
                 "role_id": row[4],
                 "participant_user_ids": [str(value) for value in participants],
+                "participant_users": cleaned_participant_users,
             }
         finally:
             connection.close()
+
+    def get_best_group_window(self, user_ids: list[str], session_length_hours: float) -> dict[str, Any] | None:
+        cleaned_user_ids = [str(user_id).strip() for user_id in user_ids if str(user_id).strip()]
+        total_members = len(cleaned_user_ids)
+        if not total_members:
+            return None
+
+        slot_count = max(1, int(round(session_length_hours * 2)))
+        time_slots = build_time_slots()
+        if slot_count > len(time_slots):
+            return None
+
+        availability_by_user = {
+            user_id: self.load_availability(user_id)
+            for user_id in cleaned_user_ids
+        }
+
+        best: dict[str, Any] | None = None
+        for day in WEEKDAYS:
+            for start_index in range(0, len(time_slots) - slot_count + 1):
+                window_slots = [
+                    build_slot_id(day, time_slot)
+                    for time_slot in time_slots[start_index:start_index + slot_count]
+                ]
+                matching_count = sum(
+                    1
+                    for user_id in cleaned_user_ids
+                    if all(slot_id in availability_by_user[user_id] for slot_id in window_slots)
+                )
+
+                candidate = {
+                    "day": day,
+                    "start_slot": time_slots[start_index],
+                    "matching_count": matching_count,
+                    "total_members": total_members,
+                    "is_full_match": matching_count == total_members,
+                }
+                if best is None:
+                    best = candidate
+                    continue
+                if candidate["matching_count"] > best["matching_count"]:
+                    best = candidate
+
+        if best is None or best["matching_count"] == 0:
+            return None
+
+        best["window_label"] = format_session_window_label(best["start_slot"], session_length_hours)
+        return best
+
+    def get_best_group_window_for_heatmap_selection(
+        self,
+        group_a_user_ids: list[str],
+        session_length_hours: float,
+    ) -> dict[str, Any] | None:
+        # Match heatmap's initial selected users: Group A members who currently have saved availability.
+        users_with_saved_availability = set(self.list_user_ids())
+        active_group_a_ids = sorted(
+            {
+                str(user_id).strip()
+                for user_id in group_a_user_ids
+                if str(user_id).strip() in users_with_saved_availability
+            }
+        )
+        if not active_group_a_ids:
+            return None
+
+        recommendation = self.get_best_group_window(active_group_a_ids, session_length_hours)
+        if not recommendation:
+            return None
+
+        recommendation["selected_group_a_count"] = len(active_group_a_ids)
+        return recommendation

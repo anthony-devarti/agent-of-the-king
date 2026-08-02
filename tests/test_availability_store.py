@@ -201,6 +201,10 @@ def test_heatmap_context_round_trip():
             session_length_hours=5.5,
             guild_id="123",
             role_id="456",
+            participant_users=[
+                {"id": "alice", "name": "Alice"},
+                {"id": "bob", "name": "Bob"},
+            ],
         )
         loaded = store.get_heatmap_context(context_id)
 
@@ -210,6 +214,10 @@ def test_heatmap_context_round_trip():
         assert loaded["guild_id"] == "123"
         assert loaded["role_id"] == "456"
         assert loaded["participant_user_ids"] == ["alice", "bob"]
+        assert loaded["participant_users"] == [
+            {"id": "alice", "name": "Alice"},
+            {"id": "bob", "name": "Bob"},
+        ]
 
 
 def test_heatmap_context_missing_id_returns_none():
@@ -218,3 +226,104 @@ def test_heatmap_context_missing_id_returns_none():
         store = AvailabilityStore(db_path=db_path)
 
         assert store.get_heatmap_context("does-not-exist") is None
+
+
+def test_best_group_window_prefers_full_group_overlap():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = os.path.join(tmpdir, "availability.sqlite")
+        store = AvailabilityStore(db_path=db_path)
+
+        shared_slots = {
+            build_slot_id("Monday", "19:00"),
+            build_slot_id("Monday", "19:30"),
+            build_slot_id("Monday", "20:00"),
+            build_slot_id("Monday", "20:30"),
+        }
+        store.save_availability(user_id="u1", selected_slots=shared_slots)
+        store.save_availability(user_id="u2", selected_slots=shared_slots)
+
+        recommendation = store.get_best_group_window(["u1", "u2"], session_length_hours=2.0)
+
+        assert recommendation is not None
+        assert recommendation["day"] == "Monday"
+        assert recommendation["start_slot"] == "19:00"
+        assert recommendation["matching_count"] == 2
+        assert recommendation["total_members"] == 2
+        assert recommendation["is_full_match"] is True
+
+
+def test_best_group_window_returns_best_partial_when_no_full_overlap():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = os.path.join(tmpdir, "availability.sqlite")
+        store = AvailabilityStore(db_path=db_path)
+
+        store.save_availability(
+            user_id="u1",
+            selected_slots={
+                build_slot_id("Tuesday", "18:00"),
+                build_slot_id("Tuesday", "18:30"),
+                build_slot_id("Tuesday", "19:00"),
+                build_slot_id("Tuesday", "19:30"),
+            },
+        )
+        store.save_availability(
+            user_id="u2",
+            selected_slots={
+                build_slot_id("Tuesday", "18:00"),
+                build_slot_id("Tuesday", "18:30"),
+            },
+        )
+
+        recommendation = store.get_best_group_window(["u1", "u2"], session_length_hours=2.0)
+
+        assert recommendation is not None
+        assert recommendation["day"] == "Tuesday"
+        assert recommendation["start_slot"] == "18:00"
+        assert recommendation["matching_count"] == 1
+        assert recommendation["total_members"] == 2
+        assert recommendation["is_full_match"] is False
+
+
+def test_best_group_window_for_heatmap_selection_ignores_inactive_group_a_members():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = os.path.join(tmpdir, "availability.sqlite")
+        store = AvailabilityStore(db_path=db_path)
+
+        # These two users are active in the initial heatmap selection.
+        store.save_availability(
+            user_id="111111111111111111",
+            selected_slots={
+                build_slot_id("Tuesday", "20:00"),
+                build_slot_id("Tuesday", "20:30"),
+                build_slot_id("Tuesday", "21:00"),
+                build_slot_id("Tuesday", "21:30"),
+            },
+        )
+        store.save_availability(
+            user_id="222222222222222222",
+            selected_slots={
+                build_slot_id("Tuesday", "20:00"),
+                build_slot_id("Tuesday", "20:30"),
+                build_slot_id("Tuesday", "21:00"),
+                build_slot_id("Tuesday", "21:30"),
+            },
+        )
+
+        # This Group A member has no saved availability and should not affect the initial heatmap recommendation.
+        group_a_ids = [
+            "111111111111111111",
+            "222222222222222222",
+            "333333333333333333",
+        ]
+
+        recommendation = store.get_best_group_window_for_heatmap_selection(
+            group_a_ids,
+            session_length_hours=2.0,
+        )
+
+        assert recommendation is not None
+        assert recommendation["day"] == "Tuesday"
+        assert recommendation["start_slot"] == "20:00"
+        assert recommendation["matching_count"] == 2
+        assert recommendation["total_members"] == 2
+        assert recommendation["selected_group_a_count"] == 2

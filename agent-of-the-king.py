@@ -1004,19 +1004,35 @@ class HeatmapGameSelect(discord.ui.Select):
             await interaction.response.send_message("The role configured for this game no longer exists.", ephemeral=True)
             return
 
-        role_participants = sorted(
+        participants_by_id: dict[str, str] = {}
+        for member in role.members:
+            if member.bot:
+                continue
+            member_id = str(member.id)
+            member_name = str(member.display_name or member.name or member_id).strip() or member_id
+            participants_by_id[member_id] = member_name
+
+        role_participants = sorted(participants_by_id.keys())
+        participant_users = [
             {
-                str(member.id)
-                for member in role.members
-                if not member.bot
+                "id": participant_id,
+                "name": participants_by_id[participant_id],
             }
-        )
+            for participant_id in role_participants
+        ]
         context_id = STORE.create_heatmap_context(
             game_name=str(game.get("name") or ""),
             participant_user_ids=role_participants,
             session_length_hours=float(game.get("session_length_hours") or 4),
             guild_id=str(interaction.guild.id),
             role_id=role_id,
+            participant_users=participant_users,
+        )
+
+        session_length_hours = float(game.get("session_length_hours") or 4)
+        presumptive_window = STORE.get_best_group_window_for_heatmap_selection(
+            role_participants,
+            session_length_hours=session_length_hours,
         )
 
         base_url = AVAILABILITY_WEB_URL.rstrip("/")
@@ -1025,14 +1041,35 @@ class HeatmapGameSelect(discord.ui.Select):
         view.add_item(discord.ui.Button(label="Open Heatmap", url=heatmap_url))
 
         available_users = set(STORE.list_user_ids())
-        group_a_count = len(role_participants)
+        participants_with_availability_count = len(set(role_participants) & available_users)
         group_b_count = len(available_users - set(role_participants))
         game_type = str(game.get("game_type") or "Unknown type")
+        session_label = format_session_length_hours(session_length_hours)
+
+        if presumptive_window:
+            if presumptive_window.get("is_full_match"):
+                window_copy = (
+                    f"Best presumptive {session_label}-hour participant window (matching initial heatmap selection): "
+                    f"{presumptive_window['day']} {presumptive_window['window_label']} "
+                    f"(all {presumptive_window['total_members']} members)."
+                )
+            else:
+                window_copy = (
+                    f"Best presumptive {session_label}-hour participant window (matching initial heatmap selection): "
+                    f"{presumptive_window['day']} {presumptive_window['window_label']} "
+                    f"({presumptive_window['matching_count']}/{presumptive_window['total_members']} members)."
+                )
+        else:
+            window_copy = (
+                f"No strong shared {session_label}-hour window is available for the initially selected players."
+            )
+
         await interaction.response.send_message(
             (
                 f"Heatmap ready for **{selected_game_name}** ({game_type}). "
-                f"Group A role members: {group_a_count}. "
-                f"Group B other users with availability: {group_b_count}."
+                f"Game participants with saved availability: {participants_with_availability_count}. "
+                f"Additional users with saved availability: {group_b_count}. "
+                f"{window_copy}"
             ),
             view=view,
             ephemeral=True,
