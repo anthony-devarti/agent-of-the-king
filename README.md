@@ -155,3 +155,72 @@ Typical usage:
 
 Published GHCR image:
 * `ghcr.io/anthony-devarti/agent-of-the-king:latest`
+
+### Unraid Clean Update Runbook
+
+Use this when you want to pull and restart both containers in a repeatable way.
+
+Prereqs:
+* Your bot container is named `agent-of-the-king`.
+* Your web container is named `agent-of-the-king-web`.
+* Persistent data is mounted at `/mnt/user/appdata/agent-of-the-king`.
+
+Important:
+* Do not use hostnames like `Svalbard` in link URLs unless every user can resolve that name.
+* Use either a reachable LAN IP (for local-only users) or a public domain (for remote users).
+
+#### 1) Update web container (FastAPI)
+
+```bash
+docker rm -f agent-of-the-king-web 2>/dev/null || true
+docker pull ghcr.io/anthony-devarti/agent-of-the-king:latest
+docker run -d \
+    --name agent-of-the-king-web \
+    --restart unless-stopped \
+    -p 8000:8000 \
+    -v /mnt/user/appdata/agent-of-the-king:/data \
+    -e AVAILABILITY_DB_PATH=/data/availability.sqlite \
+    ghcr.io/anthony-devarti/agent-of-the-king:latest \
+    python3 -m uvicorn app:app --host 0.0.0.0 --port 8000
+```
+
+#### 2) Update bot container (Discord)
+
+This reuses your current token/guild/channel settings from the existing container.
+
+```bash
+IP=$(hostname -I | awk '{print $1}')
+TOKEN=$(docker inspect agent-of-the-king --format '{{range .Config.Env}}{{println .}}{{end}}' | sed -n 's/^DISCORD_TOKEN=//p')
+GUILD=$(docker inspect agent-of-the-king --format '{{range .Config.Env}}{{println .}}{{end}}' | sed -n 's/^DISCORD_GUILD_ID=//p')
+ALLOWED=$(docker inspect agent-of-the-king --format '{{range .Config.Env}}{{println .}}{{end}}' | sed -n 's/^ALLOWED_CHANNEL_IDS=//p')
+
+docker rm -f agent-of-the-king 2>/dev/null || true
+docker pull ghcr.io/anthony-devarti/agent-of-the-king:latest
+docker run -d \
+    --name agent-of-the-king \
+    --restart unless-stopped \
+    -v /mnt/user/appdata/agent-of-the-king:/data \
+    -e DISCORD_TOKEN="$TOKEN" \
+    -e AVAILABILITY_DB_PATH=/data/availability.sqlite \
+    -e AVAILABILITY_WEB_URL="http://$IP:8000" \
+    -e AVAILABILITY_EDITOR_WEB_URL="http://$IP:8000" \
+    ${GUILD:+-e DISCORD_GUILD_ID="$GUILD"} \
+    ${ALLOWED:+-e ALLOWED_CHANNEL_IDS="$ALLOWED"} \
+    ghcr.io/anthony-devarti/agent-of-the-king:latest
+```
+
+If you have a public domain, replace both `AVAILABILITY_*_URL` values with that domain.
+
+#### 3) Verify health
+
+```bash
+docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' | grep -E 'agent-of-the-king(-web)?'
+docker logs --tail 50 agent-of-the-king-web
+docker logs --tail 50 agent-of-the-king
+docker inspect agent-of-the-king --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -E '^AVAILABILITY_WEB_URL=|^AVAILABILITY_EDITOR_WEB_URL='
+```
+
+Expected:
+* Both containers are `Up`.
+* Web logs show Uvicorn started on port `8000`.
+* Bot env includes both `AVAILABILITY_WEB_URL` and `AVAILABILITY_EDITOR_WEB_URL`.

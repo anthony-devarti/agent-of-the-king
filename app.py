@@ -32,6 +32,22 @@ def is_discord_user_id(value: str) -> bool:
     return bool(DISCORD_USER_ID_RE.match(str(value).strip()))
 
 
+def build_participant_name_map(context: dict[str, object] | None) -> dict[str, str]:
+    if not context:
+        return {}
+
+    participant_name_by_id: dict[str, str] = {}
+    for participant in context.get("participant_users", []):
+        if not isinstance(participant, dict):
+            continue
+        participant_id = str(participant.get("id") or "").strip()
+        if not is_discord_user_id(participant_id):
+            continue
+        participant_name = str(participant.get("name") or participant_id).strip() or participant_id
+        participant_name_by_id[participant_id] = participant_name
+    return participant_name_by_id
+
+
 async def fetch_role_members(guild_id: str, role_id: str) -> list[dict[str, object]]:
     token = os.getenv("DISCORD_TOKEN", "").strip()
     if not token or not guild_id or not role_id:
@@ -102,66 +118,64 @@ async def fetch_role_members(guild_id: str, role_id: str) -> list[dict[str, obje
 async def build_heatmap_users(context: dict[str, object] | None) -> tuple[list[dict[str, object]], str | None, float]:
     saved_users = {user_id for user_id in store.list_user_ids() if is_discord_user_id(user_id)}
     if context:
+        participant_name_by_id = build_participant_name_map(context)
+        if participant_name_by_id:
+            store.upsert_user_profiles(
+                [{"id": user_id, "name": name} for user_id, name in participant_name_by_id.items()],
+                source="heatmap_context",
+            )
+
+        expected_group_a_ids = {
+            str(user_id)
+            for user_id in context.get("participant_user_ids", [])
+            if is_discord_user_id(str(user_id))
+        }
+        expected_group_a_ids.update(participant_name_by_id.keys())
+
         role_members = await fetch_role_members(
             str(context.get("guild_id") or ""),
             str(context.get("role_id") or ""),
         )
+        live_name_by_id: dict[str, str] = {}
+        for member in role_members:
+            user_id = str(member.get("id") or "").strip()
+            if not is_discord_user_id(user_id):
+                continue
+            live_name_by_id[user_id] = str(member.get("name") or "").strip()
+
+        if live_name_by_id:
+            store.upsert_user_profiles(
+                [{"id": user_id, "name": name} for user_id, name in live_name_by_id.items() if name],
+                source="discord_role_members",
+            )
+
+        group_a_ids = set(expected_group_a_ids)
+        group_a_ids.update(live_name_by_id.keys())
+        known_user_ids = set(saved_users)
+        known_user_ids.update(group_a_ids)
+        persisted_name_by_id = store.get_user_profile_names(sorted(known_user_ids))
+
         users: list[dict[str, object]] = []
-        group_a_ids: set[str] = set()
-
-        if role_members:
-            for member in role_members:
-                user_id = str(member.get("id") or "").strip()
-                if not is_discord_user_id(user_id):
-                    continue
-                group_a_ids.add(user_id)
-                has_availability = user_id in saved_users
-                users.append(
-                    {
-                        "id": user_id,
-                        "name": str(member.get("name") or user_id),
-                        "group": "A",
-                        "group_label": "Game participants",
-                        "active": has_availability,
-                        "selectable": has_availability,
-                    }
-                )
-        else:
-            # Fallback when live Discord lookup fails.
-            participant_name_by_id: dict[str, str] = {}
-            for participant in context.get("participant_users", []):
-                if not isinstance(participant, dict):
-                    continue
-                participant_id = str(participant.get("id") or "").strip()
-                if not is_discord_user_id(participant_id):
-                    continue
-                participant_name = str(participant.get("name") or participant_id).strip() or participant_id
-                participant_name_by_id[participant_id] = participant_name
-
-            group_a_ids = {
-                str(user_id)
-                for user_id in context.get("participant_user_ids", [])
-                if is_discord_user_id(str(user_id))
-            }
-            group_a_ids.update(participant_name_by_id.keys())
-            for user_id in sorted(group_a_ids):
-                has_availability = user_id in saved_users
-                users.append(
-                    {
-                        "id": user_id,
-                        "name": participant_name_by_id.get(user_id, user_id),
-                        "group": "A",
-                        "group_label": "Game participants",
-                        "active": has_availability,
-                        "selectable": has_availability,
-                    }
-                )
+        for user_id in sorted(group_a_ids):
+            has_availability = user_id in saved_users
+            live_name = live_name_by_id.get(user_id, "")
+            fallback_name = persisted_name_by_id.get(user_id, participant_name_by_id.get(user_id, user_id))
+            users.append(
+                {
+                    "id": user_id,
+                    "name": live_name or fallback_name,
+                    "group": "A",
+                    "group_label": "Game participants",
+                    "active": has_availability,
+                    "selectable": has_availability,
+                }
+            )
 
         for user_id in sorted(saved_users - group_a_ids):
             users.append(
                 {
                     "id": user_id,
-                    "name": user_id,
+                    "name": persisted_name_by_id.get(user_id, participant_name_by_id.get(user_id, user_id)),
                     "group": "B",
                     "group_label": "Other users with availability",
                     "active": False,
@@ -173,10 +187,11 @@ async def build_heatmap_users(context: dict[str, object] | None) -> tuple[list[d
         return users, str(context.get("game_name") or ""), session_length_hours
 
     # Fallback behavior when no game context is provided.
+    persisted_name_by_id = store.get_user_profile_names(sorted(saved_users))
     return [
         {
             "id": user_id,
-            "name": user_id,
+            "name": persisted_name_by_id.get(user_id, user_id),
             "group": "B",
             "group_label": "Other users with availability",
             "active": True,

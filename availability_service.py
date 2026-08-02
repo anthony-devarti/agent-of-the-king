@@ -118,6 +118,17 @@ class AvailabilityStore:
                 """
             )
 
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS discord_user_profiles (
+                    user_id TEXT NOT NULL PRIMARY KEY,
+                    display_name TEXT NOT NULL,
+                    source TEXT,
+                    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+            )
+
             game_columns = {row[1] for row in connection.execute("PRAGMA table_info(games)")}
             if "game_type" not in game_columns:
                 connection.execute("ALTER TABLE games ADD COLUMN game_type TEXT")
@@ -190,6 +201,80 @@ class AvailabilityStore:
                 "SELECT DISTINCT user_id FROM availability ORDER BY user_id"
             ).fetchall()
             return [row[0] for row in rows]
+        finally:
+            connection.close()
+
+    def upsert_user_profile(self, user_id: str, display_name: str, source: str = "unknown") -> None:
+        cleaned_user_id = str(user_id).strip()
+        cleaned_display_name = str(display_name).strip()
+        if not cleaned_user_id or not cleaned_display_name:
+            return
+
+        connection = sqlite3.connect(self.db_path)
+        try:
+            connection.execute(
+                """
+                INSERT INTO discord_user_profiles (user_id, display_name, source)
+                VALUES (?, ?, ?)
+                ON CONFLICT(user_id)
+                DO UPDATE SET
+                    display_name = excluded.display_name,
+                    source = excluded.source,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                (cleaned_user_id, cleaned_display_name, source),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+
+    def upsert_user_profiles(self, profiles: list[dict[str, str]], source: str = "unknown") -> None:
+        rows: list[tuple[str, str, str]] = []
+        for profile in profiles:
+            user_id = str(profile.get("id") or "").strip()
+            display_name = str(profile.get("name") or "").strip()
+            if not user_id or not display_name:
+                continue
+            rows.append((user_id, display_name, source))
+
+        if not rows:
+            return
+
+        connection = sqlite3.connect(self.db_path)
+        try:
+            connection.executemany(
+                """
+                INSERT INTO discord_user_profiles (user_id, display_name, source)
+                VALUES (?, ?, ?)
+                ON CONFLICT(user_id)
+                DO UPDATE SET
+                    display_name = excluded.display_name,
+                    source = excluded.source,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                rows,
+            )
+            connection.commit()
+        finally:
+            connection.close()
+
+    def get_user_profile_names(self, user_ids: list[str]) -> dict[str, str]:
+        cleaned_user_ids = sorted({str(user_id).strip() for user_id in user_ids if str(user_id).strip()})
+        if not cleaned_user_ids:
+            return {}
+
+        placeholders = ",".join("?" for _ in cleaned_user_ids)
+        connection = sqlite3.connect(self.db_path)
+        try:
+            rows = connection.execute(
+                f"SELECT user_id, display_name FROM discord_user_profiles WHERE user_id IN ({placeholders})",
+                cleaned_user_ids,
+            ).fetchall()
+            return {
+                str(user_id): str(display_name)
+                for user_id, display_name in rows
+                if str(user_id).strip() and str(display_name).strip()
+            }
         finally:
             connection.close()
 
@@ -461,6 +546,8 @@ class AvailabilityStore:
                     "name": participant_users_by_id[participant_id],
                 }
             )
+
+        self.upsert_user_profiles(cleaned_participant_users, source="heatmap_context")
 
         participant_users_payload = json.dumps(cleaned_participant_users)
         effective_session_length_hours = session_length_hours if session_length_hours > 0 else 4.0

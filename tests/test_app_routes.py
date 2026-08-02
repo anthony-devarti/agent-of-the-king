@@ -267,6 +267,132 @@ def test_heatmap_user_map_uses_discord_ids_only():
     assert "444444444444444444" in user_map[slot_id]
 
 
+def test_heatmap_live_lookup_uses_context_name_when_live_name_missing(monkeypatch):
+    app.store.save_availability(
+        user_id="666666666666666666",
+        selected_slots={build_slot_id("Thursday", "18:00")},
+    )
+
+    async def fake_fetch_role_members(guild_id: str, role_id: str):
+        return [
+            {
+                "id": "666666666666666666",
+                "name": "",
+            }
+        ]
+
+    monkeypatch.setattr(app, "fetch_role_members", fake_fetch_role_members)
+
+    users, _, _ = asyncio.run(
+        app.build_heatmap_users(
+            {
+                "game_name": "Kings Game",
+                "session_length_hours": 4.0,
+                "guild_id": "1",
+                "role_id": "2",
+                "participant_user_ids": ["666666666666666666"],
+                "participant_users": [
+                    {"id": "666666666666666666", "name": "Alice Smith"},
+                ],
+            }
+        )
+    )
+
+    group_a = [user for user in users if user["group"] == "A"]
+    assert len(group_a) == 1
+    assert group_a[0]["id"] == "666666666666666666"
+    assert group_a[0]["name"] == "Alice Smith"
+
+
+def test_heatmap_partial_live_fetch_keeps_expected_participant_in_group_a(monkeypatch):
+    app.store.save_availability(
+        user_id="777777777777777777",
+        selected_slots={build_slot_id("Friday", "19:00")},
+    )
+
+    async def fake_fetch_role_members(guild_id: str, role_id: str):
+        return [
+            {
+                "id": "888888888888888888",
+                "name": "Bob Jones",
+            }
+        ]
+
+    monkeypatch.setattr(app, "fetch_role_members", fake_fetch_role_members)
+
+    users, _, _ = asyncio.run(
+        app.build_heatmap_users(
+            {
+                "game_name": "Kings Game",
+                "session_length_hours": 4.0,
+                "guild_id": "1",
+                "role_id": "2",
+                "participant_user_ids": ["888888888888888888", "777777777777777777"],
+                "participant_users": [
+                    {"id": "888888888888888888", "name": "Bob Jones"},
+                    {"id": "777777777777777777", "name": "Carol Miles"},
+                ],
+            }
+        )
+    )
+
+    participant_user = next((user for user in users if user["id"] == "777777777777777777"), None)
+    assert participant_user is not None
+    assert participant_user["group"] == "A"
+    assert participant_user["name"] == "Carol Miles"
+
+
+def test_heatmap_group_b_uses_persisted_profile_name_when_context_lacks_name(monkeypatch):
+    app.store.save_availability(
+        user_id="889999999999999999",
+        selected_slots={build_slot_id("Friday", "19:00")},
+    )
+    app.store.save_availability(
+        user_id="888888888888888888",
+        selected_slots={build_slot_id("Friday", "19:30")},
+    )
+    app.store.upsert_user_profile("889999999999999999", "Persisted Carol", source="test")
+
+    async def fake_fetch_role_members(guild_id: str, role_id: str):
+        return [{"id": "888888888888888888", "name": "Bob Jones"}]
+
+    monkeypatch.setattr(app, "fetch_role_members", fake_fetch_role_members)
+
+    users, _, _ = asyncio.run(
+        app.build_heatmap_users(
+            {
+                "game_name": "Kings Game",
+                "session_length_hours": 4.0,
+                "guild_id": "1",
+                "role_id": "2",
+                "participant_user_ids": ["888888888888888888"],
+                "participant_users": [
+                    {"id": "888888888888888888", "name": "Bob Jones"},
+                ],
+            }
+        )
+    )
+
+    group_b_user = next((user for user in users if user["id"] == "889999999999999999"), None)
+    assert group_b_user is not None
+    assert group_b_user["group"] == "B"
+    assert group_b_user["name"] == "Persisted Carol"
+
+
+def test_heatmap_without_context_uses_persisted_profile_name():
+    app.store.save_availability(
+        user_id="887777777777777777",
+        selected_slots={build_slot_id("Sunday", "08:00")},
+    )
+    app.store.upsert_user_profile("887777777777777777", "Persisted Dana", source="test")
+
+    users, _, _ = asyncio.run(app.build_heatmap_users(None))
+
+    saved_user = next((user for user in users if user["id"] == "887777777777777777"), None)
+    assert saved_user is not None
+    assert saved_user["name"] == "Persisted Dana"
+
+
 def test_heatmap_user_facing_copy_does_not_expose_group_a_or_group_b_labels():
     client = TestClient(app.app)
 

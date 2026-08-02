@@ -60,6 +60,57 @@ def test_list_user_ids_returns_distinct_sorted_user_ids():
         assert store.list_user_ids() == ["user-a", "user-b"]
 
 
+def test_user_profiles_upsert_and_lookup_round_trip():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = os.path.join(tmpdir, "availability.sqlite")
+        store = AvailabilityStore(db_path=db_path)
+
+        store.upsert_user_profile("123456789012345678", "Alice", source="test")
+        store.upsert_user_profiles(
+            [
+                {"id": "234567890123456789", "name": "Bob"},
+                {"id": "345678901234567890", "name": "Carol"},
+            ],
+            source="bulk_test",
+        )
+
+        names = store.get_user_profile_names(
+            [
+                "123456789012345678",
+                "234567890123456789",
+                "345678901234567890",
+                "missing",
+            ]
+        )
+        assert names == {
+            "123456789012345678": "Alice",
+            "234567890123456789": "Bob",
+            "345678901234567890": "Carol",
+        }
+
+
+def test_create_heatmap_context_persists_participant_profile_names():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = os.path.join(tmpdir, "availability.sqlite")
+        store = AvailabilityStore(db_path=db_path)
+
+        store.create_heatmap_context(
+            game_name="Hotel California",
+            participant_user_ids=["111111111111111111", "222222222222222222"],
+            session_length_hours=4.0,
+            participant_users=[
+                {"id": "111111111111111111", "name": "Alice"},
+                {"id": "222222222222222222", "name": "Bob"},
+            ],
+        )
+
+        names = store.get_user_profile_names(["111111111111111111", "222222222222222222"])
+        assert names == {
+            "111111111111111111": "Alice",
+            "222222222222222222": "Bob",
+        }
+
+
 def test_add_game_enforces_case_insensitive_uniqueness():
     with tempfile.TemporaryDirectory() as tmpdir:
         db_path = os.path.join(tmpdir, "availability.sqlite")

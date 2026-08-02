@@ -570,6 +570,7 @@ async def on_message(message: discord.Message):
 async def availability_cmd(interaction: discord.Interaction):
     discord_user_id = str(interaction.user.id)
     display_name = interaction.user.display_name
+    STORE.upsert_user_profile(discord_user_id, str(display_name or discord_user_id), source="availability_command")
     base_url = AVAILABILITY_EDITOR_WEB_URL.rstrip("/")
     redirect_url = f"{base_url}/availability/{discord_user_id}?display_name={quote(display_name)}"
     view = discord.ui.View()
@@ -1020,6 +1021,7 @@ class HeatmapGameSelect(discord.ui.Select):
             }
             for participant_id in role_participants
         ]
+        STORE.upsert_user_profiles(participant_users, source="heatmap_role_members")
         context_id = STORE.create_heatmap_context(
             game_name=str(game.get("name") or ""),
             participant_user_ids=role_participants,
