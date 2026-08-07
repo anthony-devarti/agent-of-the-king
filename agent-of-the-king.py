@@ -1078,6 +1078,24 @@ class HeatmapGameSelect(discord.ui.Select):
         )
 
 
+def build_role_participant_users(role: discord.Role) -> list[dict[str, str]]:
+    participants_by_id: dict[str, str] = {}
+    for member in role.members:
+        if member.bot:
+            continue
+        member_id = str(member.id)
+        member_name = str(member.display_name or member.name or member_id).strip() or member_id
+        participants_by_id[member_id] = member_name
+
+    return [
+        {
+            "id": participant_id,
+            "name": participants_by_id[participant_id],
+        }
+        for participant_id in sorted(participants_by_id.keys())
+    ]
+
+
 class HeatmapGamePickerView(discord.ui.View):
     def __init__(self, invoker_id: int, games: list[dict[str, str | None]]) -> None:
         super().__init__(timeout=120)
@@ -1262,6 +1280,69 @@ async def admin_list_games_cmd(interaction: discord.Interaction):
         ephemeral=True,
     )
 
+
+@app_commands.guild_only()
+@app_commands.default_permissions(administrator=True)
+@admin_group.command(
+    name="refresh_profiles",
+    description="Refresh user profiles from current members of active game roles",
+)
+async def admin_refresh_profiles_cmd(interaction: discord.Interaction):
+    if not is_server_admin(interaction):
+        await interaction.response.send_message("Only server administrators can use this command.", ephemeral=True)
+        return
+
+    if not interaction.guild:
+        await interaction.response.send_message("This command can only be used in a server.", ephemeral=True)
+        return
+
+    games = STORE.list_games(active_only=True)
+    if not games:
+        await interaction.response.send_message("No active games are configured.", ephemeral=True)
+        return
+
+    await interaction.response.defer(ephemeral=True)
+
+    refreshed_user_ids: set[str] = set()
+    scanned_members = 0
+    processed_games = 0
+    skipped_invalid_role = 0
+    skipped_missing_role = 0
+    skipped_empty_role = 0
+
+    for game in games:
+        role_id = str(game.get("role_id") or "")
+        if not role_id.isdigit():
+            skipped_invalid_role += 1
+            continue
+
+        role = interaction.guild.get_role(int(role_id))
+        if not role:
+            skipped_missing_role += 1
+            continue
+
+        participant_users = build_role_participant_users(role)
+        if not participant_users:
+            skipped_empty_role += 1
+            processed_games += 1
+            continue
+
+        STORE.upsert_user_profiles(participant_users, source="admin_manual_refresh")
+        processed_games += 1
+        scanned_members += len(participant_users)
+        refreshed_user_ids.update(str(user.get("id") or "") for user in participant_users if user.get("id"))
+
+    summary = (
+        "Profile refresh complete.\n"
+        f"Processed games: {processed_games}/{len(games)}\n"
+        f"Role members scanned: {scanned_members}\n"
+        f"Unique user profiles refreshed: {len(refreshed_user_ids)}\n"
+        f"Skipped invalid role config: {skipped_invalid_role}\n"
+        f"Skipped missing roles: {skipped_missing_role}\n"
+        f"Skipped empty roles: {skipped_empty_role}"
+    )
+    await interaction.followup.send(summary, ephemeral=True)
+
 TREE.add_command(admin_group)
 
 @TREE.command(name="heatmap", description="Show availability heatmap for a game")
@@ -1299,6 +1380,7 @@ async def hi_cmd(interaction: discord.Interaction):
         "  /admin add_game    Admin only: add or reactivate a game.\n"
         "  /admin remove_game Admin only: mark a game inactive.\n"
         "  /admin list_games  Admin only: list active games.\n\n"
+        "  /admin refresh_profiles Admin only: refresh profile names from active game roles.\n\n"
         "MESSAGE FEATURES\n"
         "  [[card name]]                     Lookup card by name.\n"
         "  [[Card Name (0)]]                 Filter by exact XP level.\n"
