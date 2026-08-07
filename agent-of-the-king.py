@@ -32,6 +32,8 @@ ALLOWED_CHANNEL_IDS = set(
 INTENTS = discord.Intents.default()
 INTENTS.message_content = True  # Required to read message text
 INTENTS.guilds = True
+# Required for reliable role membership lookups used by heatmap/profile refresh.
+INTENTS.members = True
 
 bot = commands.Bot(command_prefix="!", intents=INTENTS)
 TREE = bot.tree
@@ -1078,9 +1080,9 @@ class HeatmapGameSelect(discord.ui.Select):
         )
 
 
-def build_role_participant_users(role: discord.Role) -> list[dict[str, str]]:
+def build_role_participant_users_from_members(members: list[discord.Member]) -> list[dict[str, str]]:
     participants_by_id: dict[str, str] = {}
-    for member in role.members:
+    for member in members:
         if member.bot:
             continue
         member_id = str(member.id)
@@ -1094,6 +1096,28 @@ def build_role_participant_users(role: discord.Role) -> list[dict[str, str]]:
         }
         for participant_id in sorted(participants_by_id.keys())
     ]
+
+
+async def build_role_participant_users(role: discord.Role) -> tuple[list[dict[str, str]], str, str | None]:
+    cached_participants = build_role_participant_users_from_members(list(role.members))
+    if cached_participants:
+        return cached_participants, "role_cache", None
+
+    fetched_members: list[discord.Member] = []
+    try:
+        async for member in role.guild.fetch_members(limit=None):
+            fetched_members.append(member)
+    except discord.Forbidden:
+        return [], "fetch_members_forbidden", "fetch_members forbidden; verify bot intents/permissions."
+    except discord.HTTPException as exc:
+        return [], "fetch_members_http_error", f"fetch_members failed: {exc}"
+
+    role_members = [member for member in fetched_members if any(item.id == role.id for item in member.roles)]
+    fetched_participants = build_role_participant_users_from_members(role_members)
+    if fetched_participants:
+        return fetched_participants, "fetch_members", None
+
+    return [], "no_members_found", "No non-bot members found for role from cache or fetch_members."
 
 
 class HeatmapGamePickerView(discord.ui.View):
@@ -1309,6 +1333,8 @@ async def admin_refresh_profiles_cmd(interaction: discord.Interaction):
     skipped_invalid_role = 0
     skipped_missing_role = 0
     skipped_empty_role = 0
+    likely_member_intent_or_cache_issue = False
+    diagnostics: list[str] = []
 
     for game in games:
         role_id = str(game.get("role_id") or "")
@@ -1321,16 +1347,27 @@ async def admin_refresh_profiles_cmd(interaction: discord.Interaction):
             skipped_missing_role += 1
             continue
 
-        participant_users = build_role_participant_users(role)
+        participant_users, lookup_source, lookup_issue = await build_role_participant_users(role)
         if not participant_users:
             skipped_empty_role += 1
             processed_games += 1
+            if role.members is not None and len(role.members) == 0:
+                likely_member_intent_or_cache_issue = True
+            role_name = str(role.name or role.id)
+            diagnostics.append(
+                f"- {game.get('name') or 'Unknown game'} | role={role_name} ({role.id}) | source={lookup_source}"
+                + (f" | issue={lookup_issue}" if lookup_issue else "")
+            )
             continue
 
         STORE.upsert_user_profiles(participant_users, source="admin_manual_refresh")
         processed_games += 1
         scanned_members += len(participant_users)
         refreshed_user_ids.update(str(user.get("id") or "") for user in participant_users if user.get("id"))
+        role_name = str(role.name or role.id)
+        diagnostics.append(
+            f"- {game.get('name') or 'Unknown game'} | role={role_name} ({role.id}) | source={lookup_source} | refreshed={len(participant_users)}"
+        )
 
     summary = (
         "Profile refresh complete.\n"
@@ -1341,6 +1378,15 @@ async def admin_refresh_profiles_cmd(interaction: discord.Interaction):
         f"Skipped missing roles: {skipped_missing_role}\n"
         f"Skipped empty roles: {skipped_empty_role}"
     )
+    if likely_member_intent_or_cache_issue:
+        summary += (
+            "\nNote: one or more roles returned zero members. "
+            "Ensure the bot has Server Members Intent enabled in both code and the Discord Developer Portal, "
+            "then restart the bot and rerun this command."
+        )
+
+    if diagnostics:
+        summary += "\nDetails:\n" + "\n".join(diagnostics[:10])
     await interaction.followup.send(summary, ephemeral=True)
 
 TREE.add_command(admin_group)
