@@ -1,0 +1,94 @@
+{
+  "sheet_type": "NWoD 1-Page Character Sheet",
+  "system": "World of Darkness",
+  "setting": "Mortals",
+  "source_pdf": "KingSheets/Systems/World of Darkness/Mortals/NWoD1-Page_Editable.pdf",
+  "character_details": {
+    "name": "",
+    "player": "",
+    "age": "",
+    "concept": "",
+    "virtue": "",
+    "vice": "",
+    "chronicle": "",
+    "faction": "",
+    "group_name": ""
+  },
+  "attributes": {
+    "mental": {
+      "intelligence": "",
+      "wits": "",
+      "resolve": ""
+    },
+    "physical": {
+      "strength": "",
+      "dexterity": "",
+      "stamina": ""
+    },
+    "social": {
+      "presence": "",
+      "manipulation": "",
+      "composure": ""
+    }
+  },
+  "skills": {
+    "mental": {
+      "academics": "",
+      "computer": "",
+      "crafts": "",
+      "investigation": "",
+      "medicine": "",
+      "occult": "",
+      "politics": "",
+      "science": ""
+    },
+    "physical": {
+      "athletics": "",
+      "brawl": "",
+      "drive": "",
+      "firearms": "",
+      "larceny": "",
+      "stealth": "",
+      "survival": "",
+      "weaponry": ""
+    },
+    "social": {
+      "animal_ken": "",
+      "empathy": "",
+      "expression": "",
+      "intimidation": "",
+      "persuasion": "",
+      "socialize": "",
+      "streetwise": "",
+      "subterfuge": ""
+    }
+  },
+  "other_details": {
+    "merits": [],
+    "flaws": [],
+    "health": "",
+    "willpower": "",
+    "size": "",
+    "speed": "",
+    "defense": "",
+    "armor": "",
+    "initiative_mod": "",
+    "experience": "",
+    "morality": "",
+    "weapons": [],
+    "equipment": []
+  },
+  "rules_reference": {
+    "attributes": "5/4/3",
+    "skills": "11/7/4 (+3 specialties)",
+    "merits": "7",
+    "health_formula": "Stamina + Size",
+    "willpower_formula": "Resolve + Composure",
+    "size_reference": "5 for adult humans",
+    "defense_formula": "Lowest of Dexterity or Wits",
+    "initiative_formula": "Dexterity + Composure",
+    "speed_formula": "Strength + Dexterity + 5",
+    "starting_morality": "7"
+  },
+  "copyright": "Copyright 2004 White Wolf Publishing http://www.worldofdarkness.com"
+}

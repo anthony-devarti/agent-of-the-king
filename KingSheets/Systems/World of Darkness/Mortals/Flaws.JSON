@@ -1,0 +1,212 @@
+{
+  "flaws": [
+    {
+      "name": "Crippled",
+      "category": "Physical",
+      "description": "Confined to a wheelchair. Speed is your Strength. Instant to move or -2 on speed and all actions to move.",
+      "source": "WoD p219",
+      "prerequisites": [],
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Cumbersome",
+      "category": "Physical",
+      "description": "Rather large. No change to size, Stamina cannot go above 3. Must shop in specialty stores for clothing",
+      "source": "RoS p98",
+      "prerequisites": [],
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Deformity",
+      "category": "Physical",
+      "description": "-2 off social rolls when meeting new people due to disfiguring limbs/scars/blemish",
+      "source": "WoD p219",
+      "prerequisites": [],
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Dwarf",
+      "category": "Physical",
+      "description": "Size is 4. XP awarded for notable social problems.",
+      "source": "WoD p219",
+      "prerequisites": [],
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Hard of Hearing",
+      "category": "Physical",
+      "description": "-2 from all hearing perception rolls.",
+      "source": "WoD p219",
+      "prerequisites": [],
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Lame",
+      "category": "Physical",
+      "description": "Speed factor is 2 due to flaw in legs (artificial, crippled, crutches etc)",
+      "source": "WoD p219",
+      "prerequisites": [],
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Mute",
+      "category": "Physical",
+      "description": "Cannot speak.",
+      "source": "WoD p219",
+      "prerequisites": [],
+      "prerequisites_text": ""
+    },
+    {
+      "name": "One Arm",
+      "category": "Physical",
+      "description": "Double time to perform manual tasks. Attempts to do task quickly are at -3",
+      "source": "WoD p219",
+      "prerequisites": [],
+      "prerequisites_text": ""
+    },
+    {
+      "name": "One Eye",
+      "category": "Physical",
+      "description": "Ranged attack penalties double. 10-again not re-rolled in driving, 1's subtract.",
+      "source": "WoD p219",
+      "prerequisites": [],
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Poor Sight",
+      "category": "Physical",
+      "description": "-2 to all sight perception tests.",
+      "source": "WoD p219",
+      "prerequisites": [],
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Addiction",
+      "category": "Mental",
+      "description": "Addicted to a substance. 3 sessions without indulging means its beaten. Indulgence here does not count for Gluttony.",
+      "source": "WoD p218",
+      "prerequisites": [],
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Amnesia",
+      "category": "Mental",
+      "description": "Memories from past trauma surface unexpectedly. Sporadically forgets allies and enemies from past.",
+      "source": "WoD p218",
+      "prerequisites": [],
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Behavior Blind",
+      "category": "Mental",
+      "description": "Unable to figure peoples moods and emotions (although Empathy rolls can provide). Cannot detect sarcasm etc.",
+      "source": "WoD p219",
+      "prerequisites": [],
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Cannibal",
+      "category": "Mental",
+      "description": "A preference rather than addiction to human flesh.",
+      "source": "RoS p98",
+      "prerequisites": [],
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Coward",
+      "category": "Mental",
+      "description": "Hesitates at dangerous or awkward situations.",
+      "source": "WoD p219",
+      "prerequisites": [],
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Forgetful",
+      "category": "Mental",
+      "description": "Doesn't forget everything, just small details that make things frustrating, such as names and short term goals.",
+      "source": "WoD p219",
+      "prerequisites": [],
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Illiterate",
+      "category": "Mental",
+      "description": "Might recognize simple words, but has trouble with sentences or books.",
+      "source": "RoS p98",
+      "prerequisites": [],
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Nightmares",
+      "category": "Mental",
+      "description": "Dreams with intensity higher than Res become nightmares, keeping the new Intensity. Alt: Roll Res+Com, failure indicates character does not regain point on nightly Willpower.",
+      "source": "CtL p193",
+      "prerequisites": [],
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Racist/Sexist",
+      "category": "Mental",
+      "description": "Has a strong bias against or for a certain social group to the exclusion of others of the same type.",
+      "source": "WoD p219",
+      "prerequisites": [],
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Aloof",
+      "category": "Social",
+      "description": "Shy and distant in social situations. Dislikes being the center of attention.",
+      "source": "WoD p219",
+      "prerequisites": [],
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Dishonorably Discharged",
+      "category": "Social",
+      "description": "Can not purchase Allies, Contacts or Status related to Military services and gain effect of the Notoriety Flaw among ex-service members.",
+      "source": "DoW p40",
+      "prerequisites": [],
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Embarrassing Secret",
+      "category": "Social",
+      "description": "A secret in the past. XP awarded for keeping it secret at the expense of allies. (If gets out may exchange for Notoriety or other appropriate Flaw)",
+      "source": "WoD p219",
+      "prerequisites": [],
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Fealty",
+      "category": "Social",
+      "description": "The character has a master that makes decisions for her, effectively trading free will for XP.",
+      "source": "DC p199",
+      "prerequisites": [],
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Notoriety",
+      "category": "Social",
+      "description": "Inverse of Fame. If recognized, is met with negative reactions from those that would know.",
+      "source": "WoD p219",
+      "prerequisites": [],
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Speech Impediment",
+      "category": "Social",
+      "description": "Must be role-played. If forgotten, Storyteller may warn condition is curing.",
+      "source": "WoD p219",
+      "prerequisites": [],
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Untrustworthy",
+      "category": "Social",
+      "description": "-2 to Persuasion, Socialize, or any Manipulation test.",
+      "source": "RoS p98",
+      "prerequisites": [],
+      "prerequisites_text": ""
+    }
+  ]
+}

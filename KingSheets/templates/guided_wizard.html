@@ -1,0 +1,2432 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Guided Character Wizard</title>
+    <link rel="stylesheet" href="/static/style.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+      body {
+        padding: 2rem clamp(1.25rem, 3vw, 2.5rem) 3rem;
+      }
+
+      .toolbar-actions {
+        display: flex;
+        gap: 0.6rem;
+        align-items: center;
+      }
+
+      .icon-button {
+        width: 2.2rem;
+        height: 2.2rem;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        border: 1px solid rgba(96, 165, 250, 0.28);
+        background: rgba(59, 130, 246, 0.14);
+        color: #e2e8f0;
+        text-decoration: none;
+        cursor: pointer;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+      }
+
+      .guided-wizard-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.6fr) minmax(260px, 0.4fr);
+        gap: 0.85rem;
+        height: 100%;
+        align-items: stretch;
+      }
+
+      .guided-wizard-grid.is-merits-focus {
+        grid-template-columns: 1fr;
+      }
+
+      .guided-panel {
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 0.85rem;
+        padding: 0.85rem;
+        background: rgba(2, 6, 23, 0.36);
+      }
+
+      #guided-main-panel {
+        min-width: 0;
+      }
+
+      .guided-matrix-card {
+        min-height: 78vh;
+        display: flex;
+      }
+
+      .guided-matrix-card .guided-wizard-grid {
+        flex: 1;
+      }
+
+      .guided-panel .field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+      }
+
+      .guided-panel .field label {
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #93c5fd;
+      }
+
+      .guided-panel .field input,
+      .guided-panel .field textarea {
+        width: 100%;
+        box-sizing: border-box;
+        border: 1px solid rgba(148, 163, 184, 0.24);
+        border-radius: 0.8rem;
+        background: rgba(15, 23, 42, 0.7);
+        color: #f8fafc;
+        padding: 0.8rem 0.9rem;
+        font: inherit;
+        transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+      }
+
+      .guided-panel .field input::placeholder,
+      .guided-panel .field textarea::placeholder {
+        color: #94a3b8;
+      }
+
+      .guided-panel .field input:focus,
+      .guided-panel .field textarea:focus {
+        outline: none;
+        border-color: rgba(96, 165, 250, 0.7);
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        background: rgba(15, 23, 42, 0.82);
+      }
+
+      .guided-step {
+        display: none;
+      }
+
+      .guided-step.is-active {
+        display: block;
+      }
+
+      .guided-choice-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 0.55rem;
+      }
+
+      .guided-choice {
+        border: 1px solid rgba(96, 165, 250, 0.3);
+        border-radius: 0.7rem;
+        padding: 0.6rem;
+        background: rgba(15, 23, 42, 0.6);
+        color: #e2e8f0;
+        text-align: left;
+        cursor: pointer;
+      }
+
+      .guided-choice.is-selected {
+        border-color: rgba(34, 197, 94, 0.7);
+        background: rgba(20, 83, 45, 0.35);
+      }
+
+      .guided-choice strong {
+        display: block;
+        margin-bottom: 0.2rem;
+      }
+
+      .guided-choice small {
+        color: #cbd5e1;
+      }
+
+      .guided-row {
+        display: grid;
+        grid-template-columns: minmax(110px, 1fr) auto auto auto;
+        gap: 0.5rem;
+        align-items: center;
+        margin-bottom: 0.45rem;
+      }
+
+      .guided-dot-track {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.32rem;
+        min-width: 5.2rem;
+      }
+
+      .guided-dot {
+        width: 0.62rem;
+        height: 0.62rem;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.65);
+        background: rgba(15, 23, 42, 0.7);
+      }
+
+      .guided-dot.is-filled {
+        border-color: rgba(56, 189, 248, 0.9);
+        background: rgba(56, 189, 248, 0.95);
+        box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+      }
+
+      .guided-dot-button {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 999px;
+        padding: 0;
+        border: 1px solid rgba(148, 163, 184, 0.5);
+        background: rgba(15, 23, 42, 0.85);
+        box-shadow: 0 0 0 1px rgba(2, 6, 23, 0.3);
+      }
+
+      .guided-dot-button[disabled] {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
+      .guided-dot-button i {
+        pointer-events: none;
+      }
+
+      .guided-dot-button--double {
+        border-color: rgba(250, 204, 21, 0.86);
+        background: rgba(113, 63, 18, 0.75);
+        box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.28);
+      }
+
+      .guided-dot-button--double:hover,
+      .guided-dot-button--double:focus-visible {
+        border-color: rgba(254, 240, 138, 0.95);
+        background: rgba(146, 64, 14, 0.85);
+      }
+
+      .guided-actions {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+        flex-wrap: wrap;
+      }
+
+      .guided-actions button {
+        border: 1px solid rgba(148, 163, 184, 0.52);
+        box-shadow: 0 0 0 1px rgba(2, 6, 23, 0.25);
+        min-width: 2.6rem;
+      }
+
+      .guided-actions button:hover,
+      .guided-actions button:focus-visible {
+        border-color: rgba(96, 165, 250, 0.85);
+      }
+
+      .guided-actions .secondary {
+        background: rgba(15, 23, 42, 0.55);
+      }
+
+      .guided-stepper {
+        display: grid;
+        gap: 0.35rem;
+      }
+
+      .guided-stepper-item {
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 0.55rem;
+        padding: 0.4rem 0.5rem;
+        color: #94a3b8;
+        font-size: 0.88rem;
+        cursor: pointer;
+        background: rgba(15, 23, 42, 0.35);
+      }
+
+      .guided-stepper-item.is-active {
+        color: #f8fafc;
+        border-color: rgba(56, 189, 248, 0.7);
+        background: rgba(14, 116, 144, 0.2);
+      }
+
+      .guided-stepper-item.is-done {
+        color: #bbf7d0;
+        border-color: rgba(34, 197, 94, 0.5);
+      }
+
+      .guided-stepper-item:hover,
+      .guided-stepper-item:focus-visible {
+        border-color: rgba(96, 165, 250, 0.75);
+        color: #f8fafc;
+        outline: none;
+      }
+
+      .guided-review {
+        margin: 0;
+        white-space: pre-wrap;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.84rem;
+        color: #dbeafe;
+      }
+
+      .guided-merits-layout {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.7rem;
+      }
+
+      .guided-merits-panel {
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 0.75rem;
+        padding: 0.65rem;
+        background: rgba(15, 23, 42, 0.45);
+        min-height: 180px;
+      }
+
+      .guided-merits-list {
+        max-height: 360px;
+        overflow: auto;
+        display: grid;
+        gap: 0.5rem;
+      }
+
+      .guided-merits-table-wrap {
+        max-height: 360px;
+        overflow: auto;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 0.55rem;
+        background: rgba(2, 6, 23, 0.35);
+      }
+
+      .guided-merits-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.82rem;
+      }
+
+      .guided-merits-table th,
+      .guided-merits-table td {
+        padding: 0.4rem 0.45rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      .guided-merits-table th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        background: rgba(15, 23, 42, 0.96);
+        color: #bfdbfe;
+        font-size: 0.74rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .guided-merits-table td:last-child,
+      .guided-merits-table th:last-child {
+        text-align: right;
+        width: 1%;
+        white-space: nowrap;
+      }
+
+      .guided-merit-title-cell {
+        font-weight: 700;
+        color: #e2e8f0;
+      }
+
+      .guided-merit-name-desktop {
+        display: inline;
+      }
+
+      .guided-merit-mobile-toggle {
+        display: none;
+      }
+
+      .guided-merit-mobile-extra {
+        display: none;
+      }
+
+      .guided-merit-mobile-extra p {
+        margin: 0.3rem 0 0;
+        color: #cbd5e1;
+        font-size: 0.82rem;
+      }
+
+      .guided-merit-mobile-extra .guided-merit-meta {
+        margin-top: 0.3rem;
+      }
+
+      .guided-merits-table tr.is-unavailable {
+        opacity: 0.58;
+      }
+
+      .guided-merits-table tr.is-unavailable td {
+        cursor: help;
+      }
+
+      .guided-merit-description {
+        margin: 0;
+        color: #cbd5e1;
+        line-height: 1.3;
+      }
+
+      .guided-merit-description.is-collapsed {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
+      .guided-merit-expand {
+        margin-top: 0.2rem;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: #93c5fd;
+        font-size: 0.74rem;
+        cursor: pointer;
+      }
+
+      .guided-merits-empty {
+        padding: 0.7rem;
+        color: #cbd5e1;
+      }
+
+      .guided-merit-adjust {
+        display: inline-flex;
+        align-items: center;
+        gap: 0;
+        border: 1px solid rgba(148, 163, 184, 0.45);
+        border-radius: 0.25rem;
+        overflow: hidden;
+      }
+
+      .guided-merit-step-button {
+        width: 1.65rem;
+        height: 1.65rem;
+        min-width: 1.65rem;
+        border-radius: 0;
+        border: 0;
+        margin: 0;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .guided-merit-step-button + .guided-merit-step-button {
+        border-left: 1px solid rgba(148, 163, 184, 0.45);
+      }
+
+      .guided-merit-current {
+        min-width: 2.2rem;
+        text-align: center;
+        font-size: 0.76rem;
+        color: #bfdbfe;
+      }
+
+      .guided-merits-panel--selected .guided-merits-list {
+        max-height: 240px;
+      }
+
+      #guided-main-panel.is-merits-step {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+
+      #guided-main-panel.is-merits-step .guided-step[data-step="11"].is-active {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;
+      }
+
+      #guided-main-panel.is-merits-step .guided-merits-layout {
+        display: grid;
+        grid-template-rows: minmax(0, 1fr) auto;
+        gap: 0.7rem;
+      }
+
+      #guided-main-panel.is-merits-step .guided-merits-panel {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+
+      #guided-main-panel.is-merits-step #guided-merits-panel-catalog .guided-merits-table-wrap {
+        flex: 1;
+        min-height: 38dvh;
+        max-height: 62dvh;
+      }
+
+      #guided-main-panel.is-merits-step #guided-merits-panel-selected {
+        max-height: 24dvh;
+      }
+
+      #guided-main-panel.is-merits-step #guided-merits-panel-selected .guided-merits-list {
+        flex: 1;
+        min-height: 0;
+        max-height: 17dvh;
+      }
+
+      #guided-main-panel.is-merits-step .guided-merits-table-wrap {
+        min-height: 0;
+      }
+
+      .guided-merit-card {
+        border: 1px solid rgba(96, 165, 250, 0.26);
+        border-radius: 0.6rem;
+        padding: 0.5rem;
+        background: rgba(2, 6, 23, 0.42);
+      }
+
+      .guided-merit-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.55rem;
+        align-items: flex-start;
+      }
+
+      .guided-merit-card h5 {
+        margin: 0 0 0.25rem;
+        font-size: 0.94rem;
+      }
+
+      .guided-merit-meta {
+        color: #93c5fd;
+        font-size: 0.78rem;
+      }
+
+      .guided-merit-card p {
+        margin: 0.35rem 0 0;
+        color: #cbd5e1;
+        font-size: 0.86rem;
+      }
+
+      .guided-merit-details {
+        margin-top: 0.35rem;
+      }
+
+      .guided-merit-details summary {
+        color: #93c5fd;
+        cursor: pointer;
+        font-size: 0.8rem;
+      }
+
+      .guided-merit-actions {
+        display: flex;
+        gap: 0.4rem;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .guided-selected-merit-body {
+        display: grid;
+        grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+        gap: 0.55rem;
+        align-items: start;
+      }
+
+      .guided-selected-merit-main {
+        min-width: 0;
+        display: grid;
+        gap: 0.35rem;
+      }
+
+      .guided-selected-merit-top {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.55rem;
+      }
+
+      .guided-selected-merit-top h5 {
+        margin: 0;
+      }
+
+      .guided-selected-merit-rating {
+        color: #bfdbfe;
+        font-size: 0.78rem;
+        white-space: nowrap;
+      }
+
+      .guided-selected-merit-main p {
+        margin: 0;
+      }
+
+      .guided-selected-merit-trash-col {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+      }
+
+      .guided-selected-merit-remove {
+        flex-shrink: 0;
+      }
+
+      .guided-merit-actions select {
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        border-radius: 0.55rem;
+        padding: 0.3rem 0.45rem;
+        background: rgba(15, 23, 42, 0.78);
+        color: #f8fafc;
+      }
+
+      .guided-merit-total {
+        margin: 0.45rem 0;
+        color: #bfdbfe;
+        font-weight: 700;
+      }
+
+      .guided-merit-total.is-invalid {
+        color: #fca5a5;
+      }
+
+      .guided-merit-total.is-capped {
+        color: #86efac;
+      }
+
+      @media (max-width: 860px) {
+        .guided-wizard-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .guided-merits-table th:nth-child(2),
+        .guided-merits-table th:nth-child(3),
+        .guided-merits-table td:nth-child(2),
+        .guided-merits-table td:nth-child(3) {
+          display: none;
+        }
+
+        .guided-merits-table th,
+        .guided-merits-table td {
+          padding: 0.35rem 0.3rem;
+        }
+
+        .guided-merits-table td:last-child,
+        .guided-merits-table th:last-child {
+          width: auto;
+        }
+
+        .guided-merit-current {
+          display: none;
+        }
+
+        .guided-merit-name-desktop {
+          display: none;
+        }
+
+        .guided-merit-mobile-toggle {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0.5rem;
+          border: 0;
+          background: transparent;
+          color: #e2e8f0;
+          text-align: left;
+          font: inherit;
+          padding: 0;
+          cursor: pointer;
+          font-weight: 700;
+          box-shadow: none;
+          text-shadow: none;
+          -webkit-appearance: none;
+          appearance: none;
+        }
+
+        .guided-merit-mobile-toggle:hover,
+        .guided-merit-mobile-toggle:focus-visible,
+        .guided-merit-mobile-toggle:active {
+          box-shadow: none;
+          text-shadow: none;
+          outline: none;
+        }
+
+        .guided-merit-mobile-extra.is-open {
+          display: block;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page-shell">
+      <section class="hero-card">
+        <h1>Guided Character Wizard</h1>
+        <p>World of Darkness Mortals guided setup.</p>
+      </section>
+
+      <section class="toolbar-card">
+        <div class="identity-card">
+          <span class="identity-label">User</span>
+          <span class="identity-value">{{ user_id or 'Unknown user' }}</span>
+        </div>
+        <div class="toolbar-actions">
+          <button class="icon-button" type="button" onclick="window.location.href='/king-sheets?user_id={{ user_id | urlencode }}'" aria-label="Back to sheets" title="Back to sheets">
+            <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+          </button>
+        </div>
+      </section>
+
+      <section class="matrix-card guided-matrix-card" style="padding:1rem;">
+        <div id="guided-wizard-grid" class="guided-wizard-grid">
+          <section id="guided-main-panel" class="guided-panel">
+            <div style="display:flex; justify-content:space-between; gap:0.7rem; align-items:center; margin-bottom:0.5rem;">
+              <strong id="guided-step-title">Step 1: Concept</strong>
+              <span id="guided-step-count">1 / 12</span>
+            </div>
+            <p id="guided-concept-reminder" style="display:none; margin:0 0 0.65rem; color:#bfdbfe;"></p>
+
+            <div class="guided-step" data-step="1">
+              <p style="margin-top:0;">Describe what your character is at their core.</p>
+              <div class="field">
+                <label for="guided-concept">Concept (3-5 words)</label>
+                <input id="guided-concept" type="text" maxlength="120" placeholder="Ex: Haunted private investigator" />
+              </div>
+            </div>
+
+            <div class="guided-step" data-step="2">
+              <p style="margin-top:0;">Choose one Vice and one Virtue.</p>
+              <h4 style="margin:0.35rem 0;">Vice</h4>
+              <div id="guided-vice-grid" class="guided-choice-grid"></div>
+              <h4 style="margin:0.75rem 0 0.35rem;">Virtue</h4>
+              <div id="guided-virtue-grid" class="guided-choice-grid"></div>
+            </div>
+
+            <div class="guided-step" data-step="3">
+              <p style="margin-top:0;">Choose best and worst Attribute categories (secondary is automatic). Look at your concept if you're having trouble deciding</p>
+              <h4 style="margin:0.35rem 0;">Best</h4>
+              <div id="guided-attr-best" class="guided-choice-grid"></div>
+              <h4 style="margin:0.75rem 0 0.35rem;">Worst</h4>
+              <div id="guided-attr-worst" class="guided-choice-grid"></div>
+              <p id="guided-attr-priority-summary" style="margin:0.7rem 0 0;"></p>
+            </div>
+
+            <div class="guided-step" data-step="4">
+              <p style="margin-top:0;">Power: spend exactly 5 points among Intelligence, Strength, Presence. The 5th dot costs 2 points.</p>
+              <div id="guided-power-rows"></div>
+              <p id="guided-power-budget" style="margin:0.5rem 0 0;"></p>
+            </div>
+
+            <div class="guided-step" data-step="5">
+              <p style="margin-top:0;">Finesse: spend exactly 4 points among Dexterity, Wits, Manipulation. The 5th dot costs 2 points.</p>
+              <div id="guided-finesse-rows"></div>
+              <p id="guided-finesse-budget" style="margin:0.5rem 0 0;"></p>
+            </div>
+
+            <div class="guided-step" data-step="6">
+              <p style="margin-top:0;">Resistance: spend exactly 3 points among Stamina, Resolve, Composure. The 5th dot costs 2 points.</p>
+              <div id="guided-resistance-rows"></div>
+              <p id="guided-resistance-budget" style="margin:0.5rem 0 0;"></p>
+            </div>
+
+            <div class="guided-step" data-step="7">
+              <p style="margin-top:0;">Choose best and worst Skill categories (secondary is automatic). Look at your concept if you're having trouble deciding</p>
+              <h4 style="margin:0.35rem 0;">Best</h4>
+              <div id="guided-skill-best" class="guided-choice-grid"></div>
+              <h4 style="margin:0.75rem 0 0.35rem;">Worst</h4>
+              <div id="guided-skill-worst" class="guided-choice-grid"></div>
+              <p id="guided-skill-priority-summary" style="margin:0.7rem 0 0;"></p>
+            </div>
+
+            <div class="guided-step" data-step="8">
+              <p style="margin-top:0;">Mental skills: spend exactly 11 dots.</p>
+              <div id="guided-mental-rows"></div>
+              <p id="guided-mental-budget" style="margin:0.5rem 0 0;"></p>
+            </div>
+
+            <div class="guided-step" data-step="9">
+              <p style="margin-top:0;">Physical skills: spend exactly 7 dots.</p>
+              <div id="guided-physical-rows"></div>
+              <p id="guided-physical-budget" style="margin:0.5rem 0 0;"></p>
+            </div>
+
+            <div class="guided-step" data-step="10">
+              <p style="margin-top:0;">Social skills: spend exactly 4 dots.</p>
+              <div id="guided-social-rows"></div>
+              <p id="guided-social-budget" style="margin:0.5rem 0 0;"></p>
+            </div>
+
+            <div class="guided-step" data-step="11">
+              <p style="margin-top:0;">Merits are additional traits that your character can have that set them apart from others. Pick exactly 7 points worth of merits to continue.</p>
+              <div class="guided-merits-layout">
+                <section id="guided-merits-panel-catalog" class="guided-merits-panel">
+                  <div class="field" style="margin-bottom:0.55rem;">
+                    <label for="guided-merit-search">Search merits</label>
+                    <input id="guided-merit-search" type="text" placeholder="Search by name, prerequisite, or description" />
+                  </div>
+                  <div id="guided-merits-catalog" class="guided-merits-table-wrap"></div>
+                </section>
+                <section id="guided-merits-panel-selected" class="guided-merits-panel guided-merits-panel--selected">
+                  <div class="guided-merit-total" id="guided-merit-total">Merit points spent: 0 / 7 (remaining 7)</div>
+                  <div id="guided-merits-selected" class="guided-merits-list"></div>
+                </section>
+              </div>
+            </div>
+
+            <div class="guided-step" data-step="12">
+              <p style="margin-top:0;">Flaws are drawbacks that can add depth to your character. Select any flaws you want to include.</p>
+              <div class="guided-merits-layout">
+                <section id="guided-flaws-panel-catalog" class="guided-merits-panel">
+                  <div class="field" style="margin-bottom:0.55rem;">
+                    <label for="guided-custom-flaw">Add a custom flaw</label>
+                    <div style="display:flex; gap:0.5rem; align-items:center;">
+                      <input id="guided-custom-flaw" type="text" placeholder="Ex: Allergic to silver" />
+                      <button id="guided-custom-flaw-add" class="secondary" type="button">Add</button>
+                    </div>
+                  </div>
+                  <div class="field" style="margin-bottom:0.55rem;">
+                    <label for="guided-flaw-search">Search flaws</label>
+                    <input id="guided-flaw-search" type="text" placeholder="Search by name, category, or description" />
+                  </div>
+                  <div id="guided-flaws-catalog" class="guided-merits-table-wrap"></div>
+                </section>
+                <section id="guided-flaws-panel-selected" class="guided-merits-panel guided-merits-panel--selected">
+                  <div class="guided-merit-total" id="guided-flaw-total">Flaws selected: 0</div>
+                  <div id="guided-flaws-selected" class="guided-merits-list"></div>
+                </section>
+              </div>
+            </div>
+
+            <div class="guided-step" data-step="13">
+              <p style="margin-top:0;">Exception stats are defaults that can be adjusted if your group already discussed them.</p>
+              <div class="field">
+                <label for="guided-size">Size</label>
+                <input id="guided-size" type="number" min="1" max="20" step="1" />
+              </div>
+              <div class="field">
+                <label for="guided-morality">Starting Morality</label>
+                <input id="guided-morality" type="number" min="1" max="10" step="1" />
+              </div>
+            </div>
+
+            <div class="guided-step" data-step="14">
+              <p style="margin-top:0;">Derived stats are calculated from the values you've already chosen. These are shown here so you can confirm the numbers before continuing.</p>
+              <div class="guided-merits-panel" style="padding:0.85rem; display:grid; gap:0.7rem;">
+                <div>
+                  <h4 style="margin:0 0 0.35rem;">Health</h4>
+                  <p id="guided-derived-health" style="margin:0 0 0.3rem;"></p>
+                  <p style="margin:0; color:#cbd5e1; font-size:0.86rem;">Formula: <strong id="guided-derived-health-formula"></strong></p>
+                </div>
+                <div>
+                  <h4 style="margin:0 0 0.35rem;">Willpower</h4>
+                  <p id="guided-derived-willpower" style="margin:0 0 0.3rem;"></p>
+                  <p style="margin:0; color:#cbd5e1; font-size:0.86rem;">Formula: <strong id="guided-derived-willpower-formula"></strong></p>
+                </div>
+                <div>
+                  <h4 style="margin:0 0 0.35rem;">Speed</h4>
+                  <p id="guided-derived-speed" style="margin:0 0 0.3rem;"></p>
+                  <p style="margin:0; color:#cbd5e1; font-size:0.86rem;">Formula: <strong id="guided-derived-speed-formula"></strong></p>
+                </div>
+                <div>
+                  <h4 style="margin:0 0 0.35rem;">Defense</h4>
+                  <p id="guided-derived-defense" style="margin:0 0 0.3rem;"></p>
+                  <p style="margin:0; color:#cbd5e1; font-size:0.86rem;">Formula: <strong id="guided-derived-defense-formula"></strong></p>
+                </div>
+                <div>
+                  <h4 style="margin:0 0 0.35rem;">Initiative</h4>
+                  <p id="guided-derived-initiative" style="margin:0 0 0.3rem;"></p>
+                  <p style="margin:0; color:#cbd5e1; font-size:0.86rem;">Formula: <strong id="guided-derived-initiative-formula"></strong></p>
+                </div>
+                <div>
+                  <h4 style="margin:0 0 0.35rem;">Starting Morality</h4>
+                  <p id="guided-derived-morality" style="margin:0 0 0.3rem;"></p>
+                  <p style="margin:0; color:#cbd5e1; font-size:0.86rem;">Default: <strong id="guided-derived-morality-default"></strong></p>
+                </div>
+              </div>
+            </div>
+
+            <div class="guided-step" data-step="15">
+              <p style="margin-top:0;">Review your choices and export JSON.</p>
+              <pre id="guided-review" class="guided-review"></pre>
+            </div>
+
+            <div class="guided-actions">
+              <button id="guided-prev" class="secondary" type="button" aria-label="Previous step"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i></button>
+              <button id="guided-next" type="button" aria-label="Next step"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
+              <button id="guided-export" type="button" style="display:none;">Export JSON</button>
+            </div>
+          </section>
+
+          <aside id="guided-sidebar" class="guided-panel">
+            <h4 style="margin-top:0;">Progress</h4>
+            <div id="guided-stepper" class="guided-stepper"></div>
+            <h4 style="margin:0.9rem 0 0.35rem;">Current picks</h4>
+            <div id="guided-summary" style="font-size:0.88rem; color:#cbd5e1;"></div>
+          </aside>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const VICES = [
+        { value: 'Pride', description: 'You value your own accomplishments and believe you deserve recognition.' },
+        { value: 'Greed', description: 'You are driven by the desire to acquire and possess more.' },
+        { value: 'Lust', description: 'You are driven by desire and seek gratification through passion.' },
+        { value: 'Envy', description: 'You resent what others have and desire what belongs to them.' },
+        { value: 'Gluttony', description: 'You indulge your appetites and have difficulty denying yourself pleasure.' },
+        { value: 'Wrath', description: 'You respond to problems with anger, aggression, or violence.' },
+        { value: 'Sloth', description: 'You avoid effort and responsibility, preferring the path of least resistance.' },
+      ];
+      const VIRTUES = [
+        { value: 'Faith', description: 'You place your trust in something greater than yourself.' },
+        { value: 'Hope', description: 'You believe that things can become better, even in difficult circumstances.' },
+        { value: 'Charity', description: 'You are motivated by compassion and a desire to help others.' },
+        { value: 'Fortitude', description: 'You endure hardship and refuse to give up when things become difficult.' },
+        { value: 'Justice', description: 'You believe people should be treated fairly and that wrongs should be corrected.' },
+        { value: 'Prudence', description: 'You think carefully before acting and consider the consequences of your choices.' },
+        { value: 'Temperance', description: 'You exercise restraint and seek balance rather than excess.' },
+      ];
+
+      const ATTRIBUTE_CATEGORIES = ['power', 'finesse', 'resistance'];
+      const ATTRIBUTE_FIELDS = {
+        power: ['intelligence', 'strength', 'presence'],
+        finesse: ['dexterity', 'wits', 'manipulation'],
+        resistance: ['stamina', 'resolve', 'composure'],
+      };
+      const SKILL_CATEGORIES = ['mental', 'physical', 'social'];
+      const SKILL_FIELDS = {
+        mental: ['academics', 'computer', 'crafts', 'investigation', 'medicine', 'occult', 'politics', 'science'],
+        physical: ['athletics', 'brawl', 'drive', 'firearms', 'larceny', 'stealth', 'survival', 'weaponry'],
+        social: ['animal_ken', 'empathy', 'expression', 'intimidation', 'persuasion', 'socialize', 'streetwise', 'subterfuge'],
+      };
+
+      const BASE_TEMPLATE = {
+        sheet_type: 'NWoD 1-Page Character Sheet',
+        system: 'World of Darkness',
+        setting: 'Mortals',
+        source_pdf: 'KingSheets/Systems/World of Darkness/Mortals/NWoD1-Page_Editable.pdf',
+        character_details: {
+          name: '', player: '', age: '', concept: '', virtue: '', vice: '', chronicle: '', faction: '', group_name: '',
+        },
+        attributes: {
+          mental: { intelligence: '', wits: '', resolve: '' },
+          physical: { strength: '', dexterity: '', stamina: '' },
+          social: { presence: '', manipulation: '', composure: '' },
+        },
+        skills: {
+          mental: { academics: '', computer: '', crafts: '', investigation: '', medicine: '', occult: '', politics: '', science: '' },
+          physical: { athletics: '', brawl: '', drive: '', firearms: '', larceny: '', stealth: '', survival: '', weaponry: '' },
+          social: { animal_ken: '', empathy: '', expression: '', intimidation: '', persuasion: '', socialize: '', streetwise: '', subterfuge: '' },
+        },
+        other_details: {
+          merits: [], flaws: [], health: '', willpower: '', size: '', speed: '', defense: '', armor: '', initiative_mod: '', experience: '', morality: '', weapons: [], equipment: [],
+        },
+        rules_reference: {
+          attributes: '5/4/3', skills: '11/7/4 (+3 specialties)', merits: '7', health_formula: 'Stamina + Size', willpower_formula: 'Resolve + Composure',
+          size_reference: '5 for adult humans', defense_formula: 'Lowest of Dexterity or Wits', initiative_formula: 'Dexterity + Composure', speed_formula: 'Strength + Dexterity + 5', starting_morality: '7',
+        },
+        copyright: 'Copyright 2004 White Wolf Publishing http://www.worldofdarkness.com',
+      };
+
+      const STEP_LABELS = [
+        'Concept',
+        'Virtue and Vice',
+        'Attribute Categories',
+        'Power Attributes',
+        'Finesse Attributes',
+        'Resistance Attributes',
+        'Skill Categories',
+        'Mental Skills',
+        'Physical Skills',
+        'Social Skills',
+        'Merits',
+        'Flaws',
+        'Exception Stats',
+        'Derived Stats',
+        'Review',
+      ];
+
+      const state = {
+        step: 1,
+        concept: '',
+        virtue: '',
+        vice: '',
+        attributePriority: { best: '', middle: '', worst: '' },
+        skillPriority: { best: '', middle: '', worst: '' },
+        attributes: {},
+        skills: {},
+        meritsCatalog: [],
+        meritsLoaded: false,
+        meritSearch: '',
+        selectedMerits: [],
+        flawsCatalog: [],
+        flawsLoaded: false,
+        flawSearch: '',
+        customFlawName: '',
+        selectedFlaws: [],
+        size: 5,
+        morality: 7,
+      };
+
+      Object.values(ATTRIBUTE_FIELDS).forEach((fields) => {
+        fields.forEach((field) => {
+          state.attributes[field] = 1;
+        });
+      });
+      Object.values(SKILL_FIELDS).forEach((fields) => {
+        fields.forEach((field) => {
+          state.skills[field] = 0;
+        });
+      });
+
+      const root = document;
+      const stepTitle = root.querySelector('#guided-step-title');
+      const stepCount = root.querySelector('#guided-step-count');
+      const conceptReminder = root.querySelector('#guided-concept-reminder');
+      const prevButton = root.querySelector('#guided-prev');
+      const nextButton = root.querySelector('#guided-next');
+      const exportButton = root.querySelector('#guided-export');
+      const sizeInput = root.querySelector('#guided-size');
+      const moralityInput = root.querySelector('#guided-morality');
+
+      function titleize(value) {
+        return String(value || '').replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+      }
+
+      function deriveMiddle(best, worst, categories) {
+        return categories.find((value) => value !== best && value !== worst) || '';
+      }
+
+      function attributeCost(dots) {
+        if (dots <= 4) {
+          return dots - 1;
+        }
+        return 5;
+      }
+
+      function skillCost(dots) {
+        if (dots <= 4) {
+          return dots;
+        }
+        return 6;
+      }
+
+      function budgetForCategory(priorityState, category, budgetMap) {
+        if (priorityState.best === category) {
+          return budgetMap.best;
+        }
+        if (priorityState.middle === category) {
+          return budgetMap.middle;
+        }
+        if (priorityState.worst === category) {
+          return budgetMap.worst;
+        }
+        return 0;
+      }
+
+      function getAttributeSpent(category) {
+        return (ATTRIBUTE_FIELDS[category] || []).reduce((sum, field) => sum + attributeCost(state.attributes[field]), 0);
+      }
+
+      function getSkillSpent(category) {
+        return (SKILL_FIELDS[category] || []).reduce((sum, field) => sum + skillCost(state.skills[field]), 0);
+      }
+
+      function findAttributeCategory(fieldName) {
+        return ATTRIBUTE_CATEGORIES.find((category) => ATTRIBUTE_FIELDS[category].includes(fieldName)) || '';
+      }
+
+      function findSkillCategory(fieldName) {
+        return SKILL_CATEGORIES.find((category) => SKILL_FIELDS[category].includes(fieldName)) || '';
+      }
+
+      function canIncreaseAttribute(fieldName) {
+        if (state.attributes[fieldName] >= 5) {
+          return false;
+        }
+        const category = findAttributeCategory(fieldName);
+        const budget = budgetForCategory(state.attributePriority, category, { best: 5, middle: 4, worst: 3 });
+        if (!budget) {
+          return false;
+        }
+        const currentDots = state.attributes[fieldName];
+        const extraCost = attributeCost(currentDots + 1) - attributeCost(currentDots);
+        return getAttributeSpent(category) + extraCost <= budget;
+      }
+
+      function canIncreaseSkill(fieldName) {
+        if (state.skills[fieldName] >= 5) {
+          return false;
+        }
+        const category = findSkillCategory(fieldName);
+        const budget = budgetForCategory(state.skillPriority, category, { best: 11, middle: 7, worst: 4 });
+        if (!budget) {
+          return false;
+        }
+        const currentDots = state.skills[fieldName];
+        const extraCost = skillCost(currentDots + 1) - skillCost(currentDots);
+        return getSkillSpent(category) + extraCost <= budget;
+      }
+
+      function meritRatingToText(ratingArray) {
+        const ratings = Array.isArray(ratingArray)
+          ? Array.from(new Set(ratingArray.map((value) => Number(value)).filter((value) => Number.isFinite(value)))).sort((left, right) => left - right)
+          : [];
+        if (!ratings.length) {
+          return '-';
+        }
+        if (ratings.length === 1) {
+          return String(ratings[0]);
+        }
+
+        const isSequential = ratings.length >= 3 && ratings.every((value, index) => index === 0 || value === ratings[index - 1] + 1);
+        if (isSequential) {
+          return `${ratings[0]}-${ratings[ratings.length - 1]}`;
+        }
+
+        return ratings.join(' or ');
+      }
+
+      const ATTRIBUTE_LABEL_TO_KEY = {
+        Strength: 'strength',
+        Dexterity: 'dexterity',
+        Stamina: 'stamina',
+        Presence: 'presence',
+        Manipulation: 'manipulation',
+        Composure: 'composure',
+        Intelligence: 'intelligence',
+        Wits: 'wits',
+        Resolve: 'resolve',
+      };
+
+      const SKILL_LABEL_TO_KEY = {
+        'Animal Ken': 'animal_ken',
+        Empathy: 'empathy',
+        Expression: 'expression',
+        Intimidation: 'intimidation',
+        Persuasion: 'persuasion',
+        Socialize: 'socialize',
+        Streetwise: 'streetwise',
+        Subterfuge: 'subterfuge',
+        Academics: 'academics',
+        Computer: 'computer',
+        Crafts: 'crafts',
+        Investigation: 'investigation',
+        Medicine: 'medicine',
+        Occult: 'occult',
+        Politics: 'politics',
+        Science: 'science',
+        Athletics: 'athletics',
+        Brawl: 'brawl',
+        Drive: 'drive',
+        Firearms: 'firearms',
+        Larceny: 'larceny',
+        Stealth: 'stealth',
+        Survival: 'survival',
+        Weaponry: 'weaponry',
+      };
+
+      function getSelectedMeritRatingByName(name) {
+        const target = String(name || '').trim().toLowerCase();
+        const merit = state.selectedMerits.find((entry) => String(entry.name || '').trim().toLowerCase() === target);
+        return merit ? Number(merit.rating || 0) : 0;
+      }
+
+      function getAttributeValueByLabel(label) {
+        const key = ATTRIBUTE_LABEL_TO_KEY[String(label || '').trim()];
+        if (!key) {
+          return null;
+        }
+        return Number(state.attributes[key] || 0);
+      }
+
+      function getSkillValueByLabel(label) {
+        const key = SKILL_LABEL_TO_KEY[String(label || '').trim()];
+        if (!key) {
+          return null;
+        }
+        return Number(state.skills[key] || 0);
+      }
+
+      function evaluateNamedRequirement(name, requiredRating) {
+        const cleanName = String(name || '').trim();
+        if (!cleanName) {
+          return false;
+        }
+
+        const threshold = Number.isFinite(Number(requiredRating)) ? Number(requiredRating) : 1;
+        const attributeValue = getAttributeValueByLabel(cleanName);
+        if (attributeValue !== null) {
+          return attributeValue >= threshold;
+        }
+
+        const skillValue = getSkillValueByLabel(cleanName);
+        if (skillValue !== null) {
+          return skillValue >= threshold;
+        }
+
+        const meritRating = getSelectedMeritRatingByName(cleanName);
+        return meritRating >= threshold;
+      }
+
+      function getAttributeValueByKey(targetName) {
+        const key = String(targetName || '').trim();
+        if (!key) {
+          return null;
+        }
+        const value = Number(state.attributes[key] || 0);
+        return Number.isFinite(value) ? value : null;
+      }
+
+      function getSkillValueByKey(targetName) {
+        const key = String(targetName || '').trim();
+        if (!key) {
+          return null;
+        }
+        const value = Number(state.skills[key] || 0);
+        return Number.isFinite(value) ? value : null;
+      }
+
+      function evaluateAttributeClause(clause) {
+        if (!clause || typeof clause !== 'object') {
+          return { met: true, enforceable: false, reason: 'Unsupported prerequisite' };
+        }
+
+        const target = String(clause.target || '').trim();
+        const threshold = Number.isFinite(Number(clause.min)) ? Number(clause.min) : 0;
+        if (!target) {
+          return { met: true, enforceable: false, reason: 'Missing prerequisite target' };
+        }
+
+        if (target === 'resistance_attribute') {
+          const met = ATTRIBUTE_FIELDS.resistance.some((key) => Number(state.attributes[key] || 0) >= threshold);
+          return { met, enforceable: true, reason: '' };
+        }
+
+        if (target === 'mental_attribute') {
+          const met = ATTRIBUTE_FIELDS.power.some((key) => Number(state.attributes[key] || 0) >= threshold);
+          return { met, enforceable: true, reason: '' };
+        }
+
+        const value = getAttributeValueByKey(target);
+        if (value === null) {
+          return { met: true, enforceable: false, reason: `Unsupported attribute prerequisite: ${target}` };
+        }
+
+        return { met: value >= threshold, enforceable: true, reason: '' };
+      }
+
+      function evaluateSkillClause(clause) {
+        if (!clause || typeof clause !== 'object') {
+          return { met: true, enforceable: false, reason: 'Unsupported prerequisite' };
+        }
+
+        const target = String(clause.target || '').trim();
+        const threshold = Number.isFinite(Number(clause.min)) ? Number(clause.min) : 0;
+        if (!target) {
+          return { met: true, enforceable: false, reason: 'Missing prerequisite target' };
+        }
+
+        if (target === 'mental_skill') {
+          const met = SKILL_FIELDS.mental.some((key) => Number(state.skills[key] || 0) >= threshold);
+          return { met, enforceable: true, reason: '' };
+        }
+
+        if (target === 'skill') {
+          const met = Object.values(state.skills).some((value) => Number(value || 0) >= threshold);
+          return { met, enforceable: true, reason: '' };
+        }
+
+        const value = getSkillValueByKey(target);
+        if (value === null) {
+          return { met: true, enforceable: false, reason: `Unsupported skill prerequisite: ${target}` };
+        }
+
+        return { met: value >= threshold, enforceable: true, reason: '' };
+      }
+
+      function evaluateMeritClause(clause) {
+        if (!clause || typeof clause !== 'object') {
+          return { met: true, enforceable: false, reason: 'Unsupported prerequisite' };
+        }
+
+        const target = String(clause.target || '').trim();
+        const threshold = Number.isFinite(Number(clause.min)) ? Number(clause.min) : 0;
+        if (!target) {
+          return { met: true, enforceable: false, reason: 'Missing prerequisite target' };
+        }
+
+        const meritRating = getSelectedMeritRatingByName(target);
+        return { met: meritRating >= threshold, enforceable: true, reason: '' };
+      }
+
+      function evaluateSkillCountClause(clause) {
+        if (!clause || typeof clause !== 'object') {
+          return { met: true, enforceable: false, reason: 'Unsupported prerequisite' };
+        }
+
+        const threshold = Number.isFinite(Number(clause.min)) ? Number(clause.min) : 0;
+        const requiredCount = Number.isFinite(Number(clause.count)) ? Number(clause.count) : 2;
+        const count = Object.values(state.skills).filter((value) => Number(value || 0) >= threshold).length;
+        return { met: count >= requiredCount, enforceable: true, reason: '' };
+      }
+
+      function evaluatePrerequisiteClause(clause) {
+        if (!clause || typeof clause !== 'object') {
+          return { met: true, enforceable: false, reason: 'Unsupported prerequisite' };
+        }
+
+        switch (clause.type) {
+          case 'attribute':
+            return evaluateAttributeClause(clause);
+          case 'skill':
+            return evaluateSkillClause(clause);
+          case 'merit':
+            return evaluateMeritClause(clause);
+          case 'skill_count':
+            return evaluateSkillCountClause(clause);
+          case 'any': {
+            const clauses = Array.isArray(clause.clauses) ? clause.clauses : [];
+            if (!clauses.length) {
+              return { met: true, enforceable: false, reason: 'Missing any-group clauses' };
+            }
+
+            const results = clauses.map((item) => evaluatePrerequisiteClause(item));
+            const enforceableResults = results.filter((item) => item.enforceable);
+            if (!enforceableResults.length) {
+              return { met: true, enforceable: false, reason: 'Informational any-group prerequisite' };
+            }
+
+            return {
+              met: enforceableResults.some((item) => item.met),
+              enforceable: true,
+              reason: '',
+            };
+          }
+          default:
+            return { met: true, enforceable: false, reason: `Informational prerequisite: ${String(clause.type || 'custom').trim()}` };
+        }
+      }
+
+      function evaluateMeritPrerequisites(prerequisites, prerequisitesText) {
+        const structured = Array.isArray(prerequisites) ? prerequisites : [];
+        if (structured.length) {
+          const unmet = [];
+          let hasEnforceableClause = false;
+          structured.forEach((clause) => {
+            const result = evaluatePrerequisiteClause(clause);
+            if (result.enforceable) {
+              hasEnforceableClause = true;
+              if (!result.met) {
+                unmet.push(result.reason || 'Prerequisite not met');
+              }
+            }
+          });
+
+          if (!hasEnforceableClause) {
+            return {
+              met: true,
+              reason: '',
+              enforceable: false,
+              informational: String(prerequisitesText || '').trim(),
+            };
+          }
+
+          if (!unmet.length) {
+            return {
+              met: true,
+              reason: '',
+              enforceable: true,
+              informational: String(prerequisitesText || '').trim(),
+            };
+          }
+
+          return {
+            met: false,
+            reason: `Prerequisites not met: ${unmet.join('; ')}`,
+            enforceable: true,
+            informational: String(prerequisitesText || '').trim(),
+          };
+        }
+
+        const raw = String(prerequisitesText || '').trim();
+        if (!raw) {
+          return { met: true, reason: '', enforceable: false, informational: '' };
+        }
+
+        return { met: true, reason: '', enforceable: false, informational: raw };
+      }
+
+      function selectedMeritPoints() {
+        return state.selectedMerits.reduce((sum, merit) => sum + Number(merit.rating || 0), 0);
+      }
+
+      function loadMeritsCatalog() {
+        const meritsPath = '/KingSheets/Systems/World%20of%20Darkness/Mortals/Merits.JSON';
+        fetch(meritsPath)
+          .then((response) => response.ok ? response.json() : { merits: [] })
+          .then((payload) => {
+            const merits = Array.isArray(payload?.merits) ? payload.merits : [];
+            state.meritsCatalog = merits.map((entry) => ({
+              name: String(entry.name || '').trim(),
+              description: String(entry.description || '').trim(),
+              prerequisites: Array.isArray(entry.prerequisites) ? entry.prerequisites : [],
+              prerequisitesText: String(entry.prerequisites_text || '').trim(),
+              book: String(entry.book || '').trim(),
+              ratingOptions: (() => {
+                const parsed = Array.isArray(entry.rating) && entry.rating.length
+                  ? entry.rating.map((value) => Number(value)).filter((value) => Number.isFinite(value))
+                  : [1];
+                return Array.from(new Set(parsed)).sort((left, right) => left - right);
+              })(),
+            })).filter((entry) => entry.name);
+            state.meritsLoaded = true;
+            render();
+          })
+          .catch(() => {
+            state.meritsLoaded = true;
+            state.meritsCatalog = [];
+            render();
+          });
+      }
+
+      function loadFlawsCatalog() {
+        const flawsPath = '/KingSheets/Systems/World%20of%20Darkness/Mortals/Flaws.JSON';
+        fetch(flawsPath)
+          .then((response) => response.ok ? response.json() : { flaws: [] })
+          .then((payload) => {
+            const flaws = Array.isArray(payload?.flaws) ? payload.flaws : [];
+            state.flawsCatalog = flaws.map((entry) => ({
+              name: String(entry.name || '').trim(),
+              category: String(entry.category || '').trim(),
+              description: String(entry.description || '').trim(),
+              source: String(entry.source || '').trim(),
+              prerequisites: Array.isArray(entry.prerequisites) ? entry.prerequisites : [],
+              prerequisitesText: String(entry.prerequisites_text || '').trim(),
+            })).filter((entry) => {
+              const hasMeaningfulContent = Boolean(entry.name || entry.category || entry.description || entry.source);
+              return hasMeaningfulContent;
+            });
+            state.flawsLoaded = true;
+            render();
+          })
+          .catch(() => {
+            state.flawsLoaded = true;
+            state.flawsCatalog = [];
+            render();
+          });
+      }
+
+      function buildChoices(containerId, options, selectedValue, onSelect) {
+        const container = root.querySelector(`#${containerId}`);
+        if (!container) {
+          return;
+        }
+        container.innerHTML = '';
+        options.forEach((item) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'guided-choice';
+          if (item.value === selectedValue) {
+            button.classList.add('is-selected');
+          }
+          button.innerHTML = `<strong>${item.value}</strong>${item.description ? `<small>${item.description}</small>` : ''}`;
+          button.addEventListener('click', () => onSelect(item.value));
+          container.appendChild(button);
+        });
+      }
+
+      function buildDotRows(containerId, fields, valueMap, onDecrement, onIncrement, getRowMeta) {
+        const container = root.querySelector(`#${containerId}`);
+        if (!container) {
+          return;
+        }
+        container.innerHTML = '';
+        fields.forEach((fieldName) => {
+          const meta = typeof getRowMeta === 'function' ? getRowMeta(fieldName) : {};
+          const row = document.createElement('div');
+          row.className = 'guided-row';
+
+          const label = document.createElement('span');
+          label.textContent = titleize(fieldName);
+
+          const minus = document.createElement('button');
+          minus.type = 'button';
+          minus.className = 'guided-dot-button';
+          minus.innerHTML = '<i class="fa-solid fa-minus" aria-hidden="true"></i>';
+          minus.disabled = Boolean(meta.canDecrease === false);
+          minus.setAttribute('aria-label', `Decrease ${titleize(fieldName)}`);
+          minus.addEventListener('click', () => onDecrement(fieldName));
+
+          const dotTrack = document.createElement('div');
+          dotTrack.className = 'guided-dot-track';
+          for (let dotIndex = 1; dotIndex <= 5; dotIndex += 1) {
+            const dot = document.createElement('span');
+            dot.className = 'guided-dot';
+            if (dotIndex <= valueMap[fieldName]) {
+              dot.classList.add('is-filled');
+            }
+            dotTrack.appendChild(dot);
+          }
+
+          const plus = document.createElement('button');
+          plus.type = 'button';
+          plus.className = 'guided-dot-button';
+          plus.innerHTML = '<i class="fa-solid fa-plus" aria-hidden="true"></i>';
+          plus.disabled = Boolean(meta.canIncrease === false);
+          plus.setAttribute('aria-label', `Increase ${titleize(fieldName)}`);
+          if (plus.disabled) {
+            plus.title = 'Not enough points to purchase another dot.';
+          }
+          if (meta.doubleCostAvailable) {
+            plus.classList.add('guided-dot-button--double');
+            plus.title = 'This raises 4 to 5 and spends 2 points (double cost).';
+          }
+          plus.addEventListener('click', () => onIncrement(fieldName));
+
+          row.appendChild(label);
+          row.appendChild(minus);
+          row.appendChild(dotTrack);
+          row.appendChild(plus);
+          container.appendChild(row);
+        });
+      }
+
+      function renderMeritsStep() {
+        const catalogEl = root.querySelector('#guided-merits-catalog');
+        const selectedEl = root.querySelector('#guided-merits-selected');
+        const totalEl = root.querySelector('#guided-merit-total');
+        const searchEl = root.querySelector('#guided-merit-search');
+
+        if (!catalogEl || !selectedEl || !totalEl || !searchEl) {
+          return;
+        }
+
+        searchEl.value = state.meritSearch;
+        searchEl.oninput = (event) => {
+          state.meritSearch = String(event.target.value || '').toLowerCase();
+          renderMeritsStep();
+        };
+
+        const spentPoints = selectedMeritPoints();
+        const remainingPoints = 7 - spentPoints;
+        totalEl.textContent = `Merit points spent: ${spentPoints} / 7 (remaining ${remainingPoints})`;
+        totalEl.classList.toggle('is-capped', spentPoints === 7);
+        totalEl.classList.toggle('is-invalid', spentPoints !== 7);
+
+        const filteredCatalog = state.meritsCatalog.filter((merit) => {
+          const haystack = `${merit.name} ${merit.description} ${merit.prerequisitesText} ${merit.book}`.toLowerCase();
+          return !state.meritSearch || haystack.includes(state.meritSearch);
+        });
+
+        catalogEl.innerHTML = '';
+        if (!state.meritsLoaded) {
+          catalogEl.innerHTML = '<div class="guided-merits-empty">Loading merits…</div>';
+        } else if (!filteredCatalog.length) {
+          catalogEl.innerHTML = '<div class="guided-merits-empty">No merits match your search.</div>';
+        } else {
+          const table = document.createElement('table');
+          table.className = 'guided-merits-table';
+          table.innerHTML = `
+            <thead>
+              <tr>
+                <th>Merit</th>
+                <th>Rating</th>
+                <th>Details</th>
+                <th>Adjust</th>
+              </tr>
+            </thead>
+          `;
+          const body = document.createElement('tbody');
+
+          filteredCatalog.forEach((merit) => {
+            const ratingOptions = merit.ratingOptions;
+            const minimumRating = ratingOptions[0] || 1;
+            const selectedMerit = state.selectedMerits.find((selected) => selected.name === merit.name);
+            const selectedRating = selectedMerit ? Number(selectedMerit.rating || minimumRating) : 0;
+            const prerequisites = evaluateMeritPrerequisites(merit.prerequisites, merit.prerequisitesText);
+            const ratingIndex = ratingOptions.indexOf(selectedRating);
+            const hasSelection = Boolean(selectedMerit);
+            const nextRating = !hasSelection
+              ? minimumRating
+              : (ratingIndex >= 0 && ratingIndex < ratingOptions.length - 1 ? ratingOptions[ratingIndex + 1] : null);
+            const previousRating = hasSelection
+              ? (ratingIndex > 0 ? ratingOptions[ratingIndex - 1] : 0)
+              : null;
+            const canAddOrIncrease = nextRating !== null && prerequisites.met;
+
+            const row = document.createElement('tr');
+            row.classList.toggle('is-unavailable', !prerequisites.met && !hasSelection);
+            if (!prerequisites.met && !hasSelection) {
+              row.title = prerequisites.reason;
+            }
+
+            const nameCell = document.createElement('td');
+            nameCell.className = 'guided-merit-title-cell';
+            const desktopName = document.createElement('span');
+            desktopName.className = 'guided-merit-name-desktop';
+            desktopName.textContent = merit.name;
+            nameCell.appendChild(desktopName);
+
+            const mobileToggle = document.createElement('button');
+            mobileToggle.type = 'button';
+            mobileToggle.className = 'guided-merit-mobile-toggle';
+            mobileToggle.setAttribute('aria-expanded', 'false');
+            mobileToggle.setAttribute('aria-label', `Show details for ${merit.name}`);
+            mobileToggle.innerHTML = `<span>${merit.name} (${meritRatingToText(ratingOptions)})</span>`;
+
+            const mobileExtra = document.createElement('div');
+            mobileExtra.className = 'guided-merit-mobile-extra';
+            if (merit.prerequisitesText) {
+              const prereq = document.createElement('div');
+              prereq.className = 'guided-merit-meta';
+              prereq.textContent = `Prerequisites: ${merit.prerequisitesText}`;
+              mobileExtra.appendChild(prereq);
+            }
+            if (merit.description) {
+              const mobileDescription = document.createElement('p');
+              mobileDescription.textContent = merit.description;
+              mobileExtra.appendChild(mobileDescription);
+            }
+            mobileToggle.addEventListener('click', () => {
+              const isOpen = mobileExtra.classList.toggle('is-open');
+              mobileToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            });
+
+            nameCell.appendChild(mobileToggle);
+            nameCell.appendChild(mobileExtra);
+            if (!prerequisites.met && !hasSelection) {
+              nameCell.title = prerequisites.reason;
+            }
+
+            const ratingCell = document.createElement('td');
+            ratingCell.textContent = meritRatingToText(ratingOptions);
+            if (!prerequisites.met && !hasSelection) {
+              ratingCell.title = prerequisites.reason;
+            }
+
+            const detailsCell = document.createElement('td');
+            if (!prerequisites.met && !hasSelection) {
+              detailsCell.title = prerequisites.reason;
+            }
+            if (merit.prerequisitesText) {
+              const prereq = document.createElement('div');
+              prereq.className = 'guided-merit-meta';
+              prereq.textContent = `Prerequisites: ${merit.prerequisitesText}${prerequisites.enforceable === false ? ' (informational)' : ''}`;
+              detailsCell.appendChild(prereq);
+            }
+            if (merit.description) {
+              const description = document.createElement('p');
+              description.className = 'guided-merit-description is-collapsed';
+              description.textContent = merit.description;
+              const expandButton = document.createElement('button');
+              expandButton.type = 'button';
+              expandButton.className = 'guided-merit-expand';
+              expandButton.textContent = 'More';
+              expandButton.hidden = true;
+              expandButton.addEventListener('click', () => {
+                const nowCollapsed = description.classList.toggle('is-collapsed');
+                expandButton.textContent = nowCollapsed ? 'More' : 'Less';
+              });
+              detailsCell.appendChild(description);
+              detailsCell.appendChild(expandButton);
+            } else {
+              detailsCell.textContent = '-';
+            }
+
+            const actionCell = document.createElement('td');
+            const adjustWrap = document.createElement('div');
+            adjustWrap.className = 'guided-merit-adjust';
+
+            const removeButton = document.createElement('button');
+            removeButton.type = 'button';
+            removeButton.className = 'secondary guided-merit-step-button';
+            removeButton.innerHTML = '<i class="fa-solid fa-minus" aria-hidden="true"></i>';
+            removeButton.setAttribute('aria-label', hasSelection ? `Reduce or remove merit ${merit.name}` : `Merit ${merit.name} not selected`);
+            removeButton.disabled = !hasSelection;
+            removeButton.title = hasSelection && previousRating === 0
+              ? 'Remove merit'
+              : 'Lower merit rating';
+
+            const currentRating = document.createElement('span');
+            currentRating.className = 'guided-merit-current';
+            currentRating.textContent = hasSelection ? String(selectedRating) : '-';
+
+            const addButton = document.createElement('button');
+            addButton.type = 'button';
+            addButton.className = 'guided-merit-step-button';
+            addButton.innerHTML = '<i class="fa-solid fa-plus" aria-hidden="true"></i>';
+            addButton.setAttribute('aria-label', hasSelection ? `Increase merit ${merit.name}` : `Add merit ${merit.name}`);
+            addButton.disabled = !canAddOrIncrease;
+            addButton.title = hasSelection
+              ? (nextRating === null ? 'Already at maximum rating' : 'Raise merit rating')
+              : 'Add merit';
+            if (!prerequisites.met) {
+              addButton.title = prerequisites.reason;
+            }
+
+            removeButton.addEventListener('click', () => {
+              const entryIndex = state.selectedMerits.findIndex((selected) => selected.name === merit.name);
+              if (entryIndex < 0) {
+                return;
+              }
+              const entry = state.selectedMerits[entryIndex];
+              const current = Number(entry.rating || minimumRating);
+              const currentIndex = ratingOptions.indexOf(current);
+              if (currentIndex <= 0) {
+                state.selectedMerits.splice(entryIndex, 1);
+              } else {
+                entry.rating = ratingOptions[currentIndex - 1];
+              }
+              render();
+            });
+
+            addButton.addEventListener('click', () => {
+              if (!prerequisites.met) {
+                return;
+              }
+              const entry = state.selectedMerits.find((selected) => selected.name === merit.name);
+              if (!entry) {
+                state.selectedMerits.push({
+                  name: merit.name,
+                  rating: minimumRating,
+                  ratingOptions,
+                  description: merit.description,
+                });
+                render();
+                return;
+              }
+
+              const current = Number(entry.rating || minimumRating);
+              const currentIndex = ratingOptions.indexOf(current);
+              if (currentIndex < 0 || currentIndex >= ratingOptions.length - 1) {
+                return;
+              }
+              const upgraded = ratingOptions[currentIndex + 1];
+              entry.rating = upgraded;
+              render();
+            });
+
+            adjustWrap.appendChild(removeButton);
+            adjustWrap.appendChild(currentRating);
+            adjustWrap.appendChild(addButton);
+            actionCell.appendChild(adjustWrap);
+            row.appendChild(nameCell);
+            row.appendChild(ratingCell);
+            row.appendChild(detailsCell);
+            row.appendChild(actionCell);
+            body.appendChild(row);
+          });
+
+          table.appendChild(body);
+          catalogEl.appendChild(table);
+          requestAnimationFrame(() => {
+            table.querySelectorAll('.guided-merit-description').forEach((description) => {
+              const expandButton = description.nextElementSibling;
+              if (!expandButton || !expandButton.classList.contains('guided-merit-expand')) {
+                return;
+              }
+              const isOverflowing = description.scrollHeight > description.clientHeight + 1;
+              if (isOverflowing) {
+                expandButton.hidden = false;
+                description.classList.add('is-collapsed');
+                expandButton.textContent = 'More';
+              } else {
+                expandButton.hidden = true;
+                description.classList.remove('is-collapsed');
+              }
+            });
+          });
+        }
+
+        selectedEl.innerHTML = '';
+        if (!state.selectedMerits.length) {
+          selectedEl.innerHTML = '<div class="guided-merit-card">No merits selected yet.</div>';
+        } else {
+          state.selectedMerits.forEach((selectedMerit, index) => {
+            const ratingOptions = Array.isArray(selectedMerit.ratingOptions) && selectedMerit.ratingOptions.length
+              ? selectedMerit.ratingOptions
+              : [Number(selectedMerit.rating || 1)];
+            const currentRating = Number(selectedMerit.rating || ratingOptions[0] || 1);
+            const meritMeta = state.meritsCatalog.find((merit) => merit.name === selectedMerit.name);
+            const meritDescription = selectedMerit.description || meritMeta?.description || '';
+
+            const card = document.createElement('article');
+            card.className = 'guided-merit-card';
+
+            const body = document.createElement('div');
+            body.className = 'guided-selected-merit-body';
+
+            const leftColumn = document.createElement('div');
+            leftColumn.className = 'guided-selected-merit-main';
+
+            const topRow = document.createElement('div');
+            topRow.className = 'guided-selected-merit-top';
+
+            const title = document.createElement('h5');
+            title.textContent = selectedMerit.name;
+
+            const ratingValue = document.createElement('span');
+            ratingValue.className = 'guided-selected-merit-rating';
+            ratingValue.textContent = `Rating: ${currentRating}`;
+
+            topRow.appendChild(title);
+            topRow.appendChild(ratingValue);
+            leftColumn.appendChild(topRow);
+
+            if (meritDescription) {
+              const description = document.createElement('p');
+              description.textContent = meritDescription;
+              leftColumn.appendChild(description);
+            }
+
+            const rightColumn = document.createElement('div');
+            rightColumn.className = 'guided-selected-merit-trash-col';
+
+            const removeButton = document.createElement('button');
+            removeButton.type = 'button';
+            removeButton.className = 'secondary guided-selected-merit-remove';
+            removeButton.innerHTML = '<i class="fa-solid fa-trash" aria-hidden="true"></i>';
+            removeButton.setAttribute('aria-label', `Remove merit ${selectedMerit.name}`);
+            removeButton.addEventListener('click', () => {
+              state.selectedMerits.splice(index, 1);
+              render();
+            });
+
+            rightColumn.appendChild(removeButton);
+            body.appendChild(leftColumn);
+            body.appendChild(rightColumn);
+            card.appendChild(body);
+            selectedEl.appendChild(card);
+          });
+        }
+      }
+
+      function renderFlawsStep() {
+        const catalogEl = root.querySelector('#guided-flaws-catalog');
+        const selectedEl = root.querySelector('#guided-flaws-selected');
+        const totalEl = root.querySelector('#guided-flaw-total');
+        const searchEl = root.querySelector('#guided-flaw-search');
+        const customInputEl = root.querySelector('#guided-custom-flaw');
+        const customAddButtonEl = root.querySelector('#guided-custom-flaw-add');
+
+        if (!catalogEl || !selectedEl || !totalEl || !searchEl || !customInputEl || !customAddButtonEl) {
+          return;
+        }
+
+        searchEl.value = state.flawSearch;
+        searchEl.oninput = (event) => {
+          state.flawSearch = String(event.target.value || '').toLowerCase();
+          renderFlawsStep();
+        };
+        customInputEl.value = state.customFlawName;
+        customInputEl.oninput = (event) => {
+          state.customFlawName = String(event.target.value || '');
+        };
+        customAddButtonEl.onclick = () => {
+          const customName = state.customFlawName.trim();
+          if (!customName) {
+            return;
+          }
+          const alreadyExists = state.selectedFlaws.some((selected) => String(selected.name || '').trim().toLowerCase() === customName.toLowerCase());
+          if (alreadyExists) {
+            return;
+          }
+          state.selectedFlaws.push({
+            name: customName,
+            category: 'Custom',
+            description: '',
+            source: 'Custom',
+            is_custom: true,
+          });
+          state.customFlawName = '';
+          render();
+        };
+
+        totalEl.textContent = `Flaws selected: ${state.selectedFlaws.length}`;
+
+        const filteredCatalog = state.flawsCatalog.filter((flaw) => {
+          const haystack = `${flaw.name} ${flaw.category} ${flaw.description} ${flaw.source} ${flaw.prerequisitesText}`.toLowerCase();
+          return !state.flawSearch || haystack.includes(state.flawSearch);
+        });
+
+        catalogEl.innerHTML = '';
+        if (!state.flawsLoaded) {
+          catalogEl.innerHTML = '<div class="guided-merits-empty">Loading flaws…</div>';
+        } else if (!filteredCatalog.length) {
+          catalogEl.innerHTML = '<div class="guided-merits-empty">No flaws match your search.</div>';
+        } else {
+          const table = document.createElement('table');
+          table.className = 'guided-merits-table';
+          table.innerHTML = `
+            <thead>
+              <tr>
+                <th>Flaw</th>
+                <th>Category</th>
+                <th>Details</th>
+                <th>Adjust</th>
+              </tr>
+            </thead>
+          `;
+          const body = document.createElement('tbody');
+
+          filteredCatalog.forEach((flaw) => {
+            const alreadySelected = state.selectedFlaws.some((selected) => selected.name === flaw.name);
+            const row = document.createElement('tr');
+            row.classList.toggle('is-unavailable', alreadySelected);
+
+            const nameCell = document.createElement('td');
+            nameCell.className = 'guided-merit-title-cell';
+            const nameText = document.createElement('span');
+            nameText.className = 'guided-merit-name-desktop';
+            nameText.textContent = flaw.name;
+            nameCell.appendChild(nameText);
+
+            const mobileToggle = document.createElement('button');
+            mobileToggle.type = 'button';
+            mobileToggle.className = 'guided-merit-mobile-toggle';
+            mobileToggle.setAttribute('aria-expanded', 'false');
+            mobileToggle.setAttribute('aria-label', `Show details for ${flaw.name}`);
+            mobileToggle.innerHTML = `<span>${flaw.name}</span>`;
+
+            const mobileExtra = document.createElement('div');
+            mobileExtra.className = 'guided-merit-mobile-extra';
+            if (flaw.description) {
+              const mobileDescription = document.createElement('p');
+              mobileDescription.textContent = flaw.description;
+              mobileExtra.appendChild(mobileDescription);
+            }
+            mobileToggle.addEventListener('click', () => {
+              const isOpen = mobileExtra.classList.toggle('is-open');
+              mobileToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            });
+
+            nameCell.appendChild(mobileToggle);
+            nameCell.appendChild(mobileExtra);
+
+            const categoryCell = document.createElement('td');
+            categoryCell.textContent = flaw.category || '-';
+
+            const detailsCell = document.createElement('td');
+            if (flaw.description) {
+              const description = document.createElement('p');
+              description.className = 'guided-merit-description is-collapsed';
+              description.textContent = flaw.description;
+              detailsCell.appendChild(description);
+            } else {
+              detailsCell.textContent = '-';
+            }
+
+            const actionCell = document.createElement('td');
+            const actionWrap = document.createElement('div');
+            actionWrap.className = 'guided-merit-adjust';
+
+            const addButton = document.createElement('button');
+            addButton.type = 'button';
+            addButton.className = 'guided-merit-step-button';
+            addButton.innerHTML = '<i class="fa-solid fa-plus" aria-hidden="true"></i>';
+            addButton.setAttribute('aria-label', `Add flaw ${flaw.name}`);
+            addButton.disabled = alreadySelected;
+            addButton.title = alreadySelected ? 'Already selected' : 'Add flaw';
+            addButton.addEventListener('click', () => {
+              if (alreadySelected) {
+                return;
+              }
+              state.selectedFlaws.push({
+                name: flaw.name,
+                category: flaw.category,
+                description: flaw.description,
+                source: flaw.source,
+              });
+              render();
+            });
+
+            const removeButton = document.createElement('button');
+            removeButton.type = 'button';
+            removeButton.className = 'secondary guided-merit-step-button';
+            removeButton.innerHTML = '<i class="fa-solid fa-minus" aria-hidden="true"></i>';
+            removeButton.setAttribute('aria-label', `Remove flaw ${flaw.name}`);
+            removeButton.disabled = !alreadySelected;
+            removeButton.title = alreadySelected ? 'Remove flaw' : 'Not selected';
+            removeButton.addEventListener('click', () => {
+              const index = state.selectedFlaws.findIndex((selected) => selected.name === flaw.name);
+              if (index >= 0) {
+                state.selectedFlaws.splice(index, 1);
+                render();
+              }
+            });
+
+            actionWrap.appendChild(removeButton);
+            actionWrap.appendChild(addButton);
+            actionCell.appendChild(actionWrap);
+            row.appendChild(nameCell);
+            row.appendChild(categoryCell);
+            row.appendChild(detailsCell);
+            row.appendChild(actionCell);
+            body.appendChild(row);
+          });
+
+          table.appendChild(body);
+          catalogEl.appendChild(table);
+        }
+
+        selectedEl.innerHTML = '';
+        if (!state.selectedFlaws.length) {
+          selectedEl.innerHTML = '<div class="guided-merit-card">No flaws selected yet.</div>';
+        } else {
+          state.selectedFlaws.forEach((selectedFlaw, index) => {
+            const card = document.createElement('article');
+            card.className = 'guided-merit-card';
+            const body = document.createElement('div');
+            body.className = 'guided-selected-merit-body';
+            const leftColumn = document.createElement('div');
+            leftColumn.className = 'guided-selected-merit-main';
+            const title = document.createElement('h5');
+            title.textContent = selectedFlaw.name;
+            leftColumn.appendChild(title);
+            if (selectedFlaw.description) {
+              const description = document.createElement('p');
+              description.textContent = selectedFlaw.description;
+              leftColumn.appendChild(description);
+            }
+            const rightColumn = document.createElement('div');
+            rightColumn.className = 'guided-selected-merit-trash-col';
+            const removeButton = document.createElement('button');
+            removeButton.type = 'button';
+            removeButton.className = 'secondary guided-selected-merit-remove';
+            removeButton.innerHTML = '<i class="fa-solid fa-trash" aria-hidden="true"></i>';
+            removeButton.setAttribute('aria-label', `Remove flaw ${selectedFlaw.name}`);
+            removeButton.addEventListener('click', () => {
+              state.selectedFlaws.splice(index, 1);
+              render();
+            });
+            rightColumn.appendChild(removeButton);
+            body.appendChild(leftColumn);
+            body.appendChild(rightColumn);
+            card.appendChild(body);
+            selectedEl.appendChild(card);
+          });
+        }
+      }
+
+      function syncExceptionStatsInputs() {
+        if (sizeInput) {
+          sizeInput.value = String(state.size ?? 5);
+        }
+        if (moralityInput) {
+          moralityInput.value = String(state.morality ?? 7);
+        }
+      }
+
+      function validateStep() {
+        if (state.step === 1) {
+          state.concept = (root.querySelector('#guided-concept')?.value || '').trim();
+          if (!state.concept) {
+            return 'Please enter a character concept.';
+          }
+        }
+
+        if (state.step === 2 && (!state.virtue || !state.vice)) {
+          return 'Choose one Virtue and one Vice.';
+        }
+
+        if (state.step === 3 && (!state.attributePriority.best || !state.attributePriority.worst || !state.attributePriority.middle)) {
+          return 'Choose best and worst attribute categories.';
+        }
+
+        if (state.step >= 4 && state.step <= 6) {
+          const category = state.step === 4 ? 'power' : state.step === 5 ? 'finesse' : 'resistance';
+          const expected = budgetForCategory(state.attributePriority, category, { best: 5, middle: 4, worst: 3 });
+          const spent = getAttributeSpent(category);
+          if (spent !== expected) {
+            return `${titleize(category)} attributes must spend exactly ${expected} points.`;
+          }
+        }
+
+        if (state.step === 7 && (!state.skillPriority.best || !state.skillPriority.worst || !state.skillPriority.middle)) {
+          return 'Choose best and worst skill categories.';
+        }
+
+        if (state.step >= 8 && state.step <= 10) {
+          const category = state.step === 8 ? 'mental' : state.step === 9 ? 'physical' : 'social';
+          const expected = budgetForCategory(state.skillPriority, category, { best: 11, middle: 7, worst: 4 });
+          const spent = getSkillSpent(category);
+          if (spent !== expected) {
+            return `${titleize(category)} skills must spend exactly ${expected} dots.`;
+          }
+        }
+
+        if (state.step === 11) {
+          const spent = selectedMeritPoints();
+          if (spent !== 7) {
+            return `Merits must total exactly 7 points to continue (currently ${spent}).`;
+          }
+        }
+
+        if (state.step === 12) {
+          return '';
+        }
+
+        if (state.step === 13) {
+          state.size = Number.parseInt(sizeInput?.value ?? state.size, 10);
+          state.morality = Number.parseInt(moralityInput?.value ?? state.morality, 10);
+          if (!Number.isFinite(state.size) || state.size < 1) {
+            state.size = 5;
+          }
+          if (!Number.isFinite(state.morality) || state.morality < 1) {
+            state.morality = 7;
+          }
+          syncExceptionStatsInputs();
+          return '';
+        }
+
+        return '';
+      }
+
+      function renderStepper() {
+        const stepper = root.querySelector('#guided-stepper');
+        stepper.innerHTML = '';
+        STEP_LABELS.forEach((label, index) => {
+          const item = document.createElement('div');
+          item.className = 'guided-stepper-item';
+          const stepNumber = index + 1;
+          if (stepNumber < state.step) {
+            item.classList.add('is-done');
+          }
+          if (stepNumber === state.step) {
+            item.classList.add('is-active');
+          }
+          item.textContent = `${stepNumber}. ${label}`;
+          stepper.appendChild(item);
+        });
+      }
+
+      function buildResultJson() {
+        const data = JSON.parse(JSON.stringify(BASE_TEMPLATE));
+        data.character_details.name = '';
+        data.character_details.concept = state.concept;
+        data.character_details.virtue = state.virtue;
+        data.character_details.vice = state.vice;
+
+        data.attributes.mental.intelligence = state.attributes.intelligence;
+        data.attributes.mental.wits = state.attributes.wits;
+        data.attributes.mental.resolve = state.attributes.resolve;
+        data.attributes.physical.strength = state.attributes.strength;
+        data.attributes.physical.dexterity = state.attributes.dexterity;
+        data.attributes.physical.stamina = state.attributes.stamina;
+        data.attributes.social.presence = state.attributes.presence;
+        data.attributes.social.manipulation = state.attributes.manipulation;
+        data.attributes.social.composure = state.attributes.composure;
+
+        SKILL_CATEGORIES.forEach((category) => {
+          SKILL_FIELDS[category].forEach((fieldName) => {
+            data.skills[category][fieldName] = state.skills[fieldName];
+          });
+        });
+
+        data.guided_creation = {
+          attribute_priority: state.attributePriority,
+          skill_priority: state.skillPriority,
+        };
+        data.other_details.merits = state.selectedMerits.map((merit) => ({
+          name: merit.name,
+          rating: merit.rating,
+        }));
+        data.other_details.flaws = state.selectedFlaws.map((flaw) => ({
+          name: flaw.name,
+          category: flaw.category,
+          description: flaw.description,
+          source: flaw.source,
+          is_custom: Boolean(flaw.is_custom),
+        }));
+        data.other_details.size = state.size;
+        data.other_details.morality = state.morality;
+        data.other_details.experience = String(data.other_details.experience || '').trim();
+        return data;
+      }
+
+      function renderReview() {
+        const review = root.querySelector('#guided-review');
+        review.textContent = JSON.stringify(buildResultJson(), null, 2);
+      }
+
+      function renderSummary() {
+        const summary = root.querySelector('#guided-summary');
+        summary.innerHTML = `
+          <div>Concept: ${state.concept || 'not set'}</div>
+          <div>Virtue: ${state.virtue || '?'}</div>
+          <div>Vice: ${state.vice || '?'}</div>
+          <div>Attributes: ${state.attributePriority.best || '?'} / ${state.attributePriority.middle || '?'} / ${state.attributePriority.worst || '?'}</div>
+          <div>Skills: ${state.skillPriority.best || '?'} / ${state.skillPriority.middle || '?'} / ${state.skillPriority.worst || '?'}</div>
+          <div>Merits: ${state.selectedMerits.length}</div>
+          <div>Flaws: ${state.selectedFlaws.length}</div>
+        `;
+      }
+
+      function renderDerivedStats() {
+        const rulesReference = BASE_TEMPLATE.rules_reference || {};
+        const healthFormula = String(rulesReference.health_formula || 'Stamina + Size').trim();
+        const willpowerFormula = String(rulesReference.willpower_formula || 'Resolve + Composure').trim();
+        const speedFormula = String(rulesReference.speed_formula || 'Strength + Dexterity + 5').trim();
+        const defenseFormula = String(rulesReference.defense_formula || 'Lowest of Dexterity or Wits').trim();
+        const initiativeFormula = String(rulesReference.initiative_formula || 'Dexterity + Composure').trim();
+        const startingMoralityDefault = String(rulesReference.starting_morality || '7').trim();
+
+        const stamina = Number(state.attributes.stamina || 0);
+        const size = Number(state.size || 0);
+        const resolve = Number(state.attributes.resolve || 0);
+        const composure = Number(state.attributes.composure || 0);
+        const strength = Number(state.attributes.strength || 0);
+        const dexterity = Number(state.attributes.dexterity || 0);
+        const wits = Number(state.attributes.wits || 0);
+        const presence = Number(state.attributes.presence || 0);
+
+        const health = stamina + size;
+        const willpower = resolve + composure;
+        const speed = strength + dexterity + 5;
+        const defense = Math.min(dexterity, wits);
+        const initiative = dexterity + composure;
+
+        const healthFormulaEl = root.querySelector('#guided-derived-health-formula');
+        const healthValueEl = root.querySelector('#guided-derived-health');
+        const willpowerFormulaEl = root.querySelector('#guided-derived-willpower-formula');
+        const willpowerValueEl = root.querySelector('#guided-derived-willpower');
+        const speedFormulaEl = root.querySelector('#guided-derived-speed-formula');
+        const speedValueEl = root.querySelector('#guided-derived-speed');
+        const defenseFormulaEl = root.querySelector('#guided-derived-defense-formula');
+        const defenseValueEl = root.querySelector('#guided-derived-defense');
+        const initiativeFormulaEl = root.querySelector('#guided-derived-initiative-formula');
+        const initiativeValueEl = root.querySelector('#guided-derived-initiative');
+        const moralityDefaultEl = root.querySelector('#guided-derived-morality-default');
+        const moralityValueEl = root.querySelector('#guided-derived-morality');
+
+        if (healthFormulaEl) healthFormulaEl.textContent = healthFormula;
+        if (healthValueEl) healthValueEl.textContent = `Health: ${health} = Stamina (${stamina}) + Size (${size})`;
+        if (willpowerFormulaEl) willpowerFormulaEl.textContent = willpowerFormula;
+        if (willpowerValueEl) willpowerValueEl.textContent = `Willpower: ${willpower} = Resolve (${resolve}) + Composure (${composure})`;
+        if (speedFormulaEl) speedFormulaEl.textContent = speedFormula;
+        if (speedValueEl) speedValueEl.textContent = `Speed: ${speed} = Strength (${strength}) + Dexterity (${dexterity}) + 5`;
+        if (defenseFormulaEl) defenseFormulaEl.textContent = defenseFormula;
+        if (defenseValueEl) defenseValueEl.textContent = `Defense: ${defense} = Lowest of Dexterity (${dexterity}) or Wits (${wits})`;
+        if (initiativeFormulaEl) initiativeFormulaEl.textContent = initiativeFormula;
+        if (initiativeValueEl) initiativeValueEl.textContent = `Initiative: ${initiative} = Dexterity (${dexterity}) + Composure (${composure})`;
+        if (moralityDefaultEl) moralityDefaultEl.textContent = startingMoralityDefault;
+        if (moralityValueEl) moralityValueEl.textContent = `Starting Morality: ${state.morality ?? 7}`;
+      }
+
+      function renderBudgets() {
+        const attributeBudgets = { best: 5, middle: 4, worst: 3 };
+        const skillBudgets = { best: 11, middle: 7, worst: 4 };
+
+        ['power', 'finesse', 'resistance'].forEach((category) => {
+          const expected = budgetForCategory(state.attributePriority, category, attributeBudgets);
+          const spent = getAttributeSpent(category);
+          const el = root.querySelector(`#guided-${category}-budget`);
+          if (el) {
+            el.textContent = `Spent ${spent} / ${expected} points.`;
+          }
+        });
+
+        ['mental', 'physical', 'social'].forEach((category) => {
+          const expected = budgetForCategory(state.skillPriority, category, skillBudgets);
+          const spent = getSkillSpent(category);
+          const el = root.querySelector(`#guided-${category}-budget`);
+          if (el) {
+            el.textContent = `Spent ${spent} / ${expected} dots.`;
+          }
+        });
+      }
+
+      function render() {
+        const wizardGrid = root.querySelector('#guided-wizard-grid');
+        const sidebar = root.querySelector('#guided-sidebar');
+        const mainPanel = root.querySelector('#guided-main-panel');
+
+        root.querySelectorAll('.guided-step').forEach((panel) => {
+          panel.classList.toggle('is-active', Number(panel.dataset.step) === state.step);
+        });
+
+        const catalogStepActive = state.step === 11 || state.step === 12;
+        if (wizardGrid) {
+          wizardGrid.classList.toggle('is-merits-focus', catalogStepActive);
+        }
+        if (mainPanel) {
+          mainPanel.classList.toggle('is-merits-step', catalogStepActive);
+        }
+        if (sidebar) {
+          sidebar.style.display = catalogStepActive ? 'none' : 'block';
+        }
+
+        stepTitle.textContent = `Step ${state.step}: ${STEP_LABELS[state.step - 1]}`;
+        stepCount.textContent = `${state.step} / ${STEP_LABELS.length}`;
+
+        if (state.step > 1) {
+          const conceptText = state.concept || '(not set yet)';
+          conceptReminder.textContent = `Concept: ${conceptText}`;
+          conceptReminder.style.display = 'block';
+        } else {
+          conceptReminder.style.display = 'none';
+        }
+
+        const bestAttr = ATTRIBUTE_CATEGORIES.map((value) => ({ value: titleize(value), raw: value }));
+        buildChoices('guided-vice-grid', VICES, state.vice, (value) => { state.vice = value; render(); });
+        buildChoices('guided-virtue-grid', VIRTUES, state.virtue, (value) => { state.virtue = value; render(); });
+        buildChoices(
+          'guided-attr-best',
+          bestAttr.map((item) => ({ value: item.raw, description: '' })),
+          state.attributePriority.best,
+          (value) => {
+            state.attributePriority.best = value;
+            if (state.attributePriority.worst === value) {
+              state.attributePriority.worst = '';
+            }
+            state.attributePriority.middle = deriveMiddle(state.attributePriority.best, state.attributePriority.worst, ATTRIBUTE_CATEGORIES);
+            render();
+          },
+        );
+        buildChoices(
+          'guided-attr-worst',
+          ATTRIBUTE_CATEGORIES.filter((value) => value !== state.attributePriority.best).map((value) => ({ value, description: '' })),
+          state.attributePriority.worst,
+          (value) => {
+            state.attributePriority.worst = value;
+            state.attributePriority.middle = deriveMiddle(state.attributePriority.best, state.attributePriority.worst, ATTRIBUTE_CATEGORIES);
+            render();
+          },
+        );
+        const attrSummary = root.querySelector('#guided-attr-priority-summary');
+        attrSummary.textContent = `Best: ${state.attributePriority.best || '?'} | Middle: ${state.attributePriority.middle || '?'} | Worst: ${state.attributePriority.worst || '?'}`;
+
+        buildDotRows('guided-power-rows', ATTRIBUTE_FIELDS.power, state.attributes,
+          (fieldName) => { if (state.attributes[fieldName] > 1) { state.attributes[fieldName] -= 1; render(); } },
+          (fieldName) => { if (canIncreaseAttribute(fieldName)) { state.attributes[fieldName] += 1; render(); } },
+          (fieldName) => ({
+            canDecrease: state.attributes[fieldName] > 1,
+            canIncrease: canIncreaseAttribute(fieldName),
+            doubleCostAvailable: state.attributes[fieldName] === 4 && canIncreaseAttribute(fieldName),
+          }),
+        );
+        buildDotRows('guided-finesse-rows', ATTRIBUTE_FIELDS.finesse, state.attributes,
+          (fieldName) => { if (state.attributes[fieldName] > 1) { state.attributes[fieldName] -= 1; render(); } },
+          (fieldName) => { if (canIncreaseAttribute(fieldName)) { state.attributes[fieldName] += 1; render(); } },
+          (fieldName) => ({
+            canDecrease: state.attributes[fieldName] > 1,
+            canIncrease: canIncreaseAttribute(fieldName),
+            doubleCostAvailable: state.attributes[fieldName] === 4 && canIncreaseAttribute(fieldName),
+          }),
+        );
+        buildDotRows('guided-resistance-rows', ATTRIBUTE_FIELDS.resistance, state.attributes,
+          (fieldName) => { if (state.attributes[fieldName] > 1) { state.attributes[fieldName] -= 1; render(); } },
+          (fieldName) => { if (canIncreaseAttribute(fieldName)) { state.attributes[fieldName] += 1; render(); } },
+          (fieldName) => ({
+            canDecrease: state.attributes[fieldName] > 1,
+            canIncrease: canIncreaseAttribute(fieldName),
+            doubleCostAvailable: state.attributes[fieldName] === 4 && canIncreaseAttribute(fieldName),
+          }),
+        );
+
+        buildChoices(
+          'guided-skill-best',
+          SKILL_CATEGORIES.map((value) => ({ value, description: '' })),
+          state.skillPriority.best,
+          (value) => {
+            state.skillPriority.best = value;
+            if (state.skillPriority.worst === value) {
+              state.skillPriority.worst = '';
+            }
+            state.skillPriority.middle = deriveMiddle(state.skillPriority.best, state.skillPriority.worst, SKILL_CATEGORIES);
+            render();
+          },
+        );
+        buildChoices(
+          'guided-skill-worst',
+          SKILL_CATEGORIES.filter((value) => value !== state.skillPriority.best).map((value) => ({ value, description: '' })),
+          state.skillPriority.worst,
+          (value) => {
+            state.skillPriority.worst = value;
+            state.skillPriority.middle = deriveMiddle(state.skillPriority.best, state.skillPriority.worst, SKILL_CATEGORIES);
+            render();
+          },
+        );
+        const skillSummary = root.querySelector('#guided-skill-priority-summary');
+        skillSummary.textContent = `Best: ${state.skillPriority.best || '?'} | Middle: ${state.skillPriority.middle || '?'} | Worst: ${state.skillPriority.worst || '?'}`;
+
+        buildDotRows('guided-mental-rows', SKILL_FIELDS.mental, state.skills,
+          (fieldName) => { if (state.skills[fieldName] > 0) { state.skills[fieldName] -= 1; render(); } },
+          (fieldName) => { if (canIncreaseSkill(fieldName)) { state.skills[fieldName] += 1; render(); } },
+          (fieldName) => ({
+            canDecrease: state.skills[fieldName] > 0,
+            canIncrease: canIncreaseSkill(fieldName),
+            doubleCostAvailable: state.skills[fieldName] === 4 && canIncreaseSkill(fieldName),
+          }),
+        );
+        buildDotRows('guided-physical-rows', SKILL_FIELDS.physical, state.skills,
+          (fieldName) => { if (state.skills[fieldName] > 0) { state.skills[fieldName] -= 1; render(); } },
+          (fieldName) => { if (canIncreaseSkill(fieldName)) { state.skills[fieldName] += 1; render(); } },
+          (fieldName) => ({
+            canDecrease: state.skills[fieldName] > 0,
+            canIncrease: canIncreaseSkill(fieldName),
+            doubleCostAvailable: state.skills[fieldName] === 4 && canIncreaseSkill(fieldName),
+          }),
+        );
+        buildDotRows('guided-social-rows', SKILL_FIELDS.social, state.skills,
+          (fieldName) => { if (state.skills[fieldName] > 0) { state.skills[fieldName] -= 1; render(); } },
+          (fieldName) => { if (canIncreaseSkill(fieldName)) { state.skills[fieldName] += 1; render(); } },
+          (fieldName) => ({
+            canDecrease: state.skills[fieldName] > 0,
+            canIncrease: canIncreaseSkill(fieldName),
+            doubleCostAvailable: state.skills[fieldName] === 4 && canIncreaseSkill(fieldName),
+          }),
+        );
+
+        renderMeritsStep();
+        renderFlawsStep();
+
+        syncExceptionStatsInputs();
+        renderDerivedStats();
+        renderBudgets();
+        renderStepper();
+        renderSummary();
+        renderReview();
+
+        const isFinalStep = state.step === STEP_LABELS.length;
+        const meritsStepInvalid = state.step === 11 && selectedMeritPoints() !== 7;
+        prevButton.disabled = state.step === 1;
+        nextButton.disabled = meritsStepInvalid;
+        nextButton.style.display = isFinalStep ? 'none' : 'inline-flex';
+        exportButton.style.display = isFinalStep ? 'inline-flex' : 'none';
+      }
+
+      prevButton.addEventListener('click', () => {
+        if (state.step > 1) {
+          state.step -= 1;
+          render();
+        }
+      });
+
+      nextButton.addEventListener('click', () => {
+        const error = validateStep();
+        if (error) {
+          return;
+        }
+        if (state.step < STEP_LABELS.length) {
+          state.step += 1;
+          render();
+        }
+      });
+
+      exportButton.addEventListener('click', () => {
+        const error = validateStep();
+        if (error) {
+          return;
+        }
+
+        const payload = buildResultJson();
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        const link = document.createElement('a');
+        const safeName = (state.concept || 'guided-character').toLowerCase().replace(/[^a-z0-9_-]+/g, '-');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${safeName}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+      });
+
+      loadMeritsCatalog();
+      loadFlawsCatalog();
+      render();
+    </script>
+  </body>
+</html>

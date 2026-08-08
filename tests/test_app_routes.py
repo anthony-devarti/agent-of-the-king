@@ -7,6 +7,10 @@ import app
 from availability_service import build_slot_id
 
 
+def test_format_timestamp_converts_naive_utc_values_to_eastern_time():
+    assert app.format_timestamp("2026-08-08 06:18:00") == "08/08/2026 02:18 AM"
+
+
 def test_home_page_uses_query_params_and_marks_user_readonly():
     client = TestClient(app.app)
 
@@ -17,6 +21,285 @@ def test_home_page_uses_query_params_and_marks_user_readonly():
     assert 'name="user_id"' in body
     assert 'readonly' in body
     assert 'value="discord-123"' in body
+
+
+def test_king_sheets_dashboard_lists_saved_sheets_for_the_current_user():
+    client = TestClient(app.app)
+    app.character_sheet_store.upsert_character_sheet(
+        owner_id="sheet-owner",
+        system_name="World of Darkness Mortals",
+        title="A Test Sheet",
+        body_html="<p>Notes here</p>",
+    )
+
+    response = client.get("/king-sheets", params={"user_id": "sheet-owner"})
+
+    assert response.status_code == 200
+    body = response.text
+    assert "Character Sheets" in body
+    assert 'aria-label="Create a new sheet"' in body
+    assert 'fa-solid fa-plus' in body
+    assert 'aria-label="Open guided character creator"' in body
+    assert '/king-sheets/wizard?user_id=sheet-owner' in body
+    assert '/king-sheets/guided' not in body
+    assert "World of Darkness Mortals" in body
+
+
+def test_king_sheets_dashboard_renders_download_modal_for_available_systems():
+    client = TestClient(app.app)
+
+    response = client.get("/king-sheets", params={"user_id": "sheet-owner"})
+
+    assert response.status_code == 200
+    body = response.text
+    assert "Download an editable pdf of an available system" in body
+    assert 'id="modal_download_system"' in body
+    assert "World of Darkness Mortals" in body
+
+
+def test_uploading_a_pdf_persists_the_file_and_renders_a_download_link():
+    client = TestClient(app.app)
+
+    response = client.post(
+        "/king-sheets",
+        data={
+            "user_id": "upload-owner",
+            "system_name": "World of Darkness Mortals",
+            "title": "Uploaded Sheet",
+            "character_name": "Alice",
+            "body_html": "<p>Uploaded</p>",
+        },
+        files={"pdf_file": ("uploaded-sheet.pdf", b"%PDF-1.4\n", "application/pdf")},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    sheet = app.character_sheet_store.load_character_sheet("upload-owner", "World of Darkness Mortals")
+    assert sheet is not None
+    assert sheet["pdf_filename"] == "uploaded-sheet.pdf"
+    assert sheet["pdf_path"] is not None
+
+    dashboard_response = client.get("/king-sheets", params={"user_id": "upload-owner"})
+    assert dashboard_response.status_code == 200
+    assert "/uploads/upload-owner_uploaded-sheet.pdf" in dashboard_response.text
+
+
+def test_uploading_a_pdf_with_spaces_in_the_filename_renders_a_url_safe_download_link():
+    client = TestClient(app.app)
+
+    response = client.post(
+        "/king-sheets",
+        data={
+            "user_id": "space-name-owner",
+            "system_name": "World of Darkness Mortals",
+            "character_name": "Alice",
+            "body_html": "<p>Uploaded</p>",
+        },
+        files={"pdf_file": ("Bobby Drop.pdf", b"%PDF-1.4\n", "application/pdf")},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+
+    dashboard_response = client.get("/king-sheets", params={"user_id": "space-name-owner"})
+    assert dashboard_response.status_code == 200
+    assert "%20" in dashboard_response.text
+
+
+def test_modal_upload_submission_returns_json_redirect_for_ajax_style_requests():
+    client = TestClient(app.app)
+
+    response = client.post(
+        "/king-sheets",
+        data={
+            "user_id": "modal-ajax-owner",
+            "system_name": "World of Darkness Mortals",
+            "create_new": "true",
+            "character_name": "",
+            "body_html": "",
+            "submitted_via_ajax": "true",
+        },
+        files={"pdf_file": ("modal-upload.pdf", b"%PDF-1.4\n", "application/pdf")},
+        headers={"X-Requested-With": "XMLHttpRequest", "Accept": "application/json"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "ok"
+    assert payload["redirect_url"].endswith("/king-sheets?user_id=modal-ajax-owner")
+
+
+def test_uploading_a_new_pdf_replaces_the_existing_stored_pdf_for_a_sheet():
+    client = TestClient(app.app)
+    app.character_sheet_store.upsert_character_sheet(
+        owner_id="replace-pdf-owner",
+        system_name="World of Darkness Mortals",
+        title="",
+        character_name="Alice",
+        body_html="<p>Original</p>",
+        pdf_path=str(app.KING_SHEETS_DIR / "replace-pdf-owner_original.pdf"),
+        pdf_filename="original.pdf",
+    )
+    original_path = Path(app.KING_SHEETS_DIR / "replace-pdf-owner_original.pdf")
+    original_path.write_bytes(b"old-pdf")
+
+    response = client.post(
+        "/king-sheets",
+        data={
+            "user_id": "replace-pdf-owner",
+            "system_name": "World of Darkness Mortals",
+            "character_name": "Alice",
+            "body_html": "<p>Updated</p>",
+        },
+        files={"pdf_file": ("replacement.pdf", b"new-pdf", "application/pdf")},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    sheet = app.character_sheet_store.load_character_sheet("replace-pdf-owner", "World of Darkness Mortals")
+    assert sheet is not None
+    assert sheet["pdf_filename"] == "replacement.pdf"
+    assert sheet["pdf_path"] == str(app.UPLOADS_DIR / "replace-pdf-owner_replacement.pdf")
+    assert not original_path.exists()
+
+
+def test_uploading_a_new_pdf_preserves_existing_character_and_notes_when_blank_values_are_submitted():
+    client = TestClient(app.app)
+    app.character_sheet_store.upsert_character_sheet(
+        owner_id="blank-values-owner",
+        system_name="World of Darkness Mortals",
+        title="",
+        character_name="Alice",
+        body_html="<p>Original notes</p>",
+        pdf_path=str(app.KING_SHEETS_DIR / "blank-values-owner_original.pdf"),
+        pdf_filename="original.pdf",
+    )
+
+    response = client.post(
+        "/king-sheets",
+        data={
+            "user_id": "blank-values-owner",
+            "system_name": "World of Darkness Mortals",
+            "character_name": "",
+            "body_html": "",
+        },
+        files={"pdf_file": ("replacement.pdf", b"new-pdf", "application/pdf")},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    sheet = app.character_sheet_store.load_character_sheet("blank-values-owner", "World of Darkness Mortals")
+    assert sheet is not None
+    assert sheet["character_name"] == "Alice"
+    assert sheet["body_html"] == "<p>Original notes</p>"
+
+
+def test_creating_multiple_sheets_for_the_same_system_keeps_them_separate():
+    client = TestClient(app.app)
+    owner_id = "multi-sheet-owner-isolated"
+
+    import sqlite3
+
+    conn = sqlite3.connect(app.character_sheet_store.db_path)
+    try:
+        conn.execute("DELETE FROM character_sheets WHERE owner_id = ?", (owner_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+    for character_name, body_html in [("Alice", "<p>First</p>"), ("Bob", "<p>Second</p>")]:
+        response = client.post(
+            "/king-sheets",
+            data={
+                "user_id": owner_id,
+                "system_name": "World of Darkness Mortals",
+                "character_name": character_name,
+                "body_html": body_html,
+                "create_new": "true",
+            },
+            follow_redirects=False,
+        )
+        assert response.status_code == 303
+
+    sheets = app.character_sheet_store.list_character_sheets(owner_id)
+    assert len(sheets) == 2
+    assert {sheet["character_name"] for sheet in sheets} == {"Alice", "Bob"}
+
+
+def test_save_king_sheet_persists_a_new_sheet_and_redirects_back_to_dashboard():
+    client = TestClient(app.app)
+
+    response = client.post(
+        "/king-sheets",
+        data={
+            "user_id": "new-sheet-owner",
+            "system_name": "World of Darkness Mortals",
+            "title": "My New Sheet",
+            "body_html": "<p>Ready to play</p>",
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    sheet = app.character_sheet_store.load_character_sheet("new-sheet-owner", "World of Darkness Mortals")
+    assert sheet is not None
+    assert sheet["title"] == ""
+
+
+def test_king_sheets_dashboard_shows_delete_confirmation_modal():
+    client = TestClient(app.app)
+
+    response = client.get("/king-sheets", params={"user_id": "delete-confirm-owner"})
+
+    assert response.status_code == 200
+    body = response.text
+    assert 'id="delete-sheet-modal"' in body
+    assert 'Delete sheet?' in body
+    assert 'This action permanently deletes the selected sheet' in body
+
+
+def test_delete_king_sheet_removes_the_sheet_and_redirects_back_to_dashboard():
+    client = TestClient(app.app)
+    app.character_sheet_store.upsert_character_sheet(
+        owner_id="delete-route-owner",
+        system_name="World of Darkness Mortals",
+        title="Delete Me",
+        character_name="Dora",
+        body_html="<p>Remove</p>",
+    )
+    sheet = app.character_sheet_store.load_character_sheet("delete-route-owner", "World of Darkness Mortals")
+    assert sheet is not None
+
+    response = client.post(
+        "/king-sheets/delete",
+        data={"user_id": "delete-route-owner", "sheet_id": sheet["id"]},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    assert app.character_sheet_store.list_character_sheets("delete-route-owner") == []
+
+
+def test_king_sheets_dashboard_shows_saved_count_and_disables_create_at_ten_sheets():
+    client = TestClient(app.app)
+    owner_id = "sheet-limit-owner"
+    for index in range(10):
+        app.character_sheet_store.upsert_character_sheet(
+            owner_id=owner_id,
+            system_name=f"System {index}",
+            title=f"Sheet {index}",
+            body_html="",
+        )
+
+    response = client.get("/king-sheets", params={"user_id": owner_id})
+
+    assert response.status_code == 200
+    body = response.text
+    assert "10 saved / 10" in body
+    assert 'disabled' in body
+    assert 'aria-label="Create a new sheet"' in body
+    assert 'fa-solid fa-plus' in body
 
 
 def test_save_availability_endpoint_accepts_user_only_payload():
@@ -411,3 +694,5 @@ def test_heatmap_user_facing_copy_does_not_expose_group_a_or_group_b_labels():
     bot_content = bot_file.read_text()
     assert "Group A role members" not in bot_content
     assert "Group B other users with availability" not in bot_content
+
+

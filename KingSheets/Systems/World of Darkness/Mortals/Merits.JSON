@@ -1,0 +1,1767 @@
+{
+  "merits": [
+    {
+      "name": "Architectural Attunement",
+      "rating": [
+        4
+      ],
+      "prerequisites": [
+        {
+          "type": "attribute",
+          "target": "wits",
+          "min": 2,
+          "specialty": null
+        },
+        {
+          "type": "skill",
+          "target": "academics",
+          "min": 2,
+          "specialty": null
+        },
+        {
+          "type": "skill",
+          "target": "occult",
+          "min": 1,
+          "specialty": "Geomancy"
+        }
+      ],
+      "description": "Perceive mystical resonance in a specific city",
+      "book": "CWork 36",
+      "prerequisites_text": "Wits 2, Academics 2, Occult 1 (Geomancy)"
+    },
+    {
+      "name": "Area of Expertise",
+      "rating": [
+        2
+      ],
+      "prerequisites": [
+        {
+          "type": "attribute",
+          "target": "resolve",
+          "min": 2,
+          "specialty": null
+        }
+      ],
+      "description": "Increase a Mental Specialty to +2",
+      "book": "FC 131",
+      "prerequisites_text": "Resolve 2"
+    },
+    {
+      "name": "Barrister",
+      "rating": [
+        4
+      ],
+      "prerequisites": [
+        {
+          "type": "skill",
+          "target": "politics",
+          "min": 3,
+          "specialty": null
+        }
+      ],
+      "description": "Can safely gauge how far Old Laws can be pushed",
+      "book": "BotD 91",
+      "prerequisites_text": "Politics 3"
+    },
+    {
+      "name": "Combat Awareness",
+      "rating": [
+        2
+      ],
+      "prerequisites": [],
+      "description": "+2 to any situational awareness roll",
+      "book": "DoW 109",
+      "prerequisites_text": "Military background"
+    },
+    {
+      "name": "Common Sense",
+      "rating": [
+        4
+      ],
+      "prerequisites": [],
+      "description": "Gives significant cautions or ideas",
+      "book": "WoD 108",
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Crafter's Sense",
+      "rating": [
+        3
+      ],
+      "prerequisites": [
+        {
+          "type": "skill",
+          "target": "crafts",
+          "min": 3,
+          "specialty": null
+        }
+      ],
+      "description": "Common Sense related to a chosen Crafts Specialty",
+      "book": "FC 131",
+      "prerequisites_text": "Crafts 3"
+    },
+    {
+      "name": "Cultural Language",
+      "rating": [
+        1
+      ],
+      "prerequisites": [],
+      "description": "A cant or argot variant of a language, which penalizes attempts by outsiders to interpret by -2.",
+      "book": "Imm 82",
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Danger Sense",
+      "rating": [
+        2
+      ],
+      "prerequisites": [],
+      "description": "+2 to detect ambush",
+      "book": "WoD 108",
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Dead Reckoning",
+      "rating": [
+        1
+      ],
+      "prerequisites": [],
+      "description": "Gains 8-again when navigating in the Underworld; loses 10-again navigating above ground.",
+      "book": "BotD 91",
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Eidetic Memory",
+      "rating": [
+        2
+      ],
+      "prerequisites": [],
+      "description": "Remember with ease, gain +2 to Intelligence + Composure to remember facts from large swaths of data",
+      "book": "WoD 108",
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Emotional Detachment",
+      "rating": [
+        1
+      ],
+      "prerequisites": [
+        {
+          "type": "attribute",
+          "target": "resolve",
+          "min": 2,
+          "specialty": null
+        }
+      ],
+      "description": "Ignores stress penalties equal to Resolve",
+      "book": "Asy 50",
+      "prerequisites_text": "Resolve 2"
+    },
+    {
+      "name": "Encyclopedic Knowledge",
+      "rating": [
+        4
+      ],
+      "prerequisites": [],
+      "description": "Know obscure facts choose a topic and can make Intelligence + Wits rolls to gain facts related to it at any time",
+      "book": "WoD 109",
+      "prerequisites_text": ""
+    },
+    {
+      "name": "EOD",
+      "rating": [
+        2
+      ],
+      "prerequisites": [
+        {
+          "type": "any",
+          "clauses": [
+            {
+              "type": "attribute",
+              "target": "wits",
+              "min": 3,
+              "specialty": null
+            },
+            {
+              "type": "attribute",
+              "target": "dexterity",
+              "min": 3,
+              "specialty": null
+            }
+          ]
+        },
+        {
+          "type": "skill",
+          "target": "crafts",
+          "min": 3,
+          "specialty": "Demolitions"
+        }
+      ],
+      "description": "Reduce penalty for disarming unfamiliar explosives",
+      "book": "Arm 208",
+      "prerequisites_text": "Wits or Dexterity 3, Crafts 3 (Demolitions)"
+    },
+    {
+      "name": "Entheogenic Synesthesia",
+      "rating": [
+        1
+      ],
+      "prerequisites": [],
+      "description": "+1 to Perception when using psychoactive drugs",
+      "book": "MT 137",
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Good Time Management",
+      "rating": [
+        2
+      ],
+      "prerequisites": [
+        {
+          "type": "any",
+          "clauses": [
+            {
+              "type": "skill",
+              "target": "academics",
+              "min": 2,
+              "specialty": null
+            },
+            {
+              "type": "skill",
+              "target": "medicine",
+              "min": 2,
+              "specialty": null
+            },
+            {
+              "type": "skill",
+              "target": "science",
+              "min": 2,
+              "specialty": null
+            }
+          ]
+        }
+      ],
+      "description": "Cut time for non-magical extended rolls by ¼",
+      "book": "Asy 50, Rel 84",
+      "prerequisites_text": "Academics, Medicine or Science 2"
+    },
+    {
+      "name": "Higher Calling",
+      "rating": [
+        2
+      ],
+      "prerequisites": [
+        {
+          "type": "attribute",
+          "target": "resolve",
+          "min": 3,
+          "specialty": null
+        }
+      ],
+      "description": "+1 on Resolve rolls to resist coercion",
+      "book": "TotW 125",
+      "prerequisites_text": "Resolve 3"
+    },
+    {
+      "name": "Holistic Awareness",
+      "rating": [
+        3
+      ],
+      "prerequisites": [],
+      "description": "Help others heal faster",
+      "book": "WoD 109",
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Hypnotic Voice",
+      "rating": [
+        4
+      ],
+      "prerequisites": [
+        {
+          "type": "any",
+          "clauses": [
+            {
+              "type": "skill",
+              "target": "persuasion",
+              "min": 3,
+              "specialty": null
+            },
+            {
+              "type": "skill",
+              "target": "science",
+              "min": 3,
+              "specialty": null
+            }
+          ]
+        }
+      ],
+      "description": "Induce trance state",
+      "book": "SS 66",
+      "prerequisites_text": "Persuasion or Science 3 (Hypnotherapy)"
+    },
+    {
+      "name": "Hypnosis",
+      "rating": [
+        3
+      ],
+      "prerequisites": [
+        {
+          "type": "any",
+          "clauses": [
+            {
+              "type": "skill",
+              "target": "medicine",
+              "min": 1,
+              "specialty": null
+            },
+            {
+              "type": "skill",
+              "target": "occult",
+              "min": 1,
+              "specialty": null
+            }
+          ]
+        }
+      ],
+      "description": "Hypnotize subjects",
+      "book": "VII 149",
+      "prerequisites_text": "Medicine or Occult 1"
+    },
+    {
+      "name": "Informative",
+      "rating": [
+        2,
+        4
+      ],
+      "prerequisites": [
+        {
+          "type": "attribute",
+          "target": "wits",
+          "min": 2,
+          "specialty": null
+        },
+        {
+          "type": "skill",
+          "target": "mental_skill",
+          "min": 2,
+          "specialty": null
+        }
+      ],
+      "description": "Use specified Skill in place of Expression",
+      "book": "FC 131",
+      "prerequisites_text": "Wits 2, Mental Skill 2"
+    },
+    {
+      "name": "Interdisciplinary Specialty",
+      "rating": [
+        1
+      ],
+      "prerequisites": [
+        {
+          "type": "skill_count",
+          "count": 2,
+          "min": 3,
+          "specialty": null
+        }
+      ],
+      "description": "Share Specialty between two Skills",
+      "book": "FC 132",
+      "prerequisites_text": "Two Skills 3"
+    },
+    {
+      "name": "Language",
+      "rating": [
+        1
+      ],
+      "prerequisites": [],
+      "description": "Speak another language",
+      "book": "WoD 109, errata",
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Lucid Dreamer",
+      "rating": [
+        1
+      ],
+      "prerequisites": [],
+      "description": "Fight off intrusions into dreams",
+      "book": "SS 67",
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Lucid Dreaming",
+      "rating": [
+        2
+      ],
+      "prerequisites": [
+        {
+          "type": "attribute",
+          "target": "resolve",
+          "min": 3,
+          "specialty": null
+        }
+      ],
+      "description": "Control dream environment and engage intruders in dream combat",
+      "book": "CTL 195",
+      "prerequisites_text": "Resolve 3"
+    },
+    {
+      "name": "Make Do",
+      "rating": [
+        1,
+        2,
+        3
+      ],
+      "prerequisites": [
+        {
+          "type": "attribute",
+          "target": "wits",
+          "min": 3,
+          "specialty": null
+        },
+        {
+          "type": "skill",
+          "target": "skill",
+          "min": 1,
+          "specialty": null
+        }
+      ],
+      "description": "Remove -1/dot penalty for shoddy tools",
+      "book": "FC 132",
+      "prerequisites_text": "Wits 3, Skill 1"
+    },
+    {
+      "name": "Meditative Mind",
+      "rating": [
+        1
+      ],
+      "prerequisites": [],
+      "description": "No penalties to meditate",
+      "book": "WoD 109",
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Multi-Lingual",
+      "rating": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "prerequisites": [],
+      "description": "2 languages per dot, conversationally",
+      "book": "Rel 85",
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Mythologist",
+      "rating": [
+        3
+      ],
+      "prerequisites": [
+        {
+          "type": "skill",
+          "target": "occult",
+          "min": 2,
+          "specialty": "Underworld"
+        }
+      ],
+      "description": "Gains some insight into some of the Underworld's enigmas",
+      "book": "BotD 91",
+      "prerequisites_text": "Occult 2 (Underworld)"
+    },
+    {
+      "name": "Psychic Resistance",
+      "rating": [
+        1,
+        2,
+        3
+      ],
+      "prerequisites": [],
+      "description": "Inhibit mental alteration by psychics",
+      "book": "SS 67",
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Rational Explanation",
+      "rating": [
+        4
+      ],
+      "prerequisites": [
+        {
+          "type": "attribute",
+          "target": "resolve",
+          "min": 2,
+          "specialty": null
+        },
+        {
+          "type": "any",
+          "clauses": [
+            {
+              "type": "skill",
+              "target": "science",
+              "min": 4,
+              "specialty": null
+            },
+            {
+              "type": "skill",
+              "target": "academics",
+              "min": 4,
+              "specialty": null
+            }
+          ]
+        }
+      ],
+      "description": "Resist mental breakdown with Science or Academics",
+      "book": "FC 133",
+      "prerequisites_text": "Resolve 2, Science or Academics 4"
+    },
+    {
+      "name": "Scientist's Sense",
+      "rating": [
+        3
+      ],
+      "prerequisites": [
+        {
+          "type": "skill",
+          "target": "science",
+          "min": 3,
+          "specialty": "Specialty"
+        }
+      ],
+      "description": "Common Sense related to Science",
+      "book": "FC 133",
+      "prerequisites_text": "Science 3 (Specialty)"
+    },
+    {
+      "name": "Supernatural Lore",
+      "rating": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "prerequisites": [],
+      "description": "Know the ways of a particular type of supernatural being. May be purchased separately for multiple types.",
+      "book": "GotU 15",
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Technophile",
+      "rating": [
+        1,
+        2
+      ],
+      "prerequisites": [],
+      "description": "Encyclopedic Knowledge in one topic",
+      "book": "Arm 208",
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Tolerance for Biology",
+      "rating": [
+        1
+      ],
+      "prerequisites": [
+        {
+          "type": "attribute",
+          "target": "resistance_attribute",
+          "min": 2,
+          "specialty": null
+        }
+      ],
+      "description": "+2 to keep composed when shown scenes of violence or carnage",
+      "book": "Asy 51",
+      "prerequisites_text": "Resistance Attribute 2"
+    },
+    {
+      "name": "Trained Memory",
+      "rating": [
+        1
+      ],
+      "prerequisites": [
+        {
+          "type": "attribute",
+          "target": "composure",
+          "min": 2,
+          "specialty": null
+        },
+        {
+          "type": "skill",
+          "target": "investigation",
+          "min": 1,
+          "specialty": null
+        }
+      ],
+      "description": "Memorize information perfectly; roll to memorize for entire scene (i.e. everything a character could sense in a given moment) instead of specific information or sensory input",
+      "book": "GotV 46",
+      "prerequisites_text": "Composure 2, Investigation 1"
+    },
+    {
+      "name": "Trained Observer",
+      "rating": [
+        1,
+        3
+      ],
+      "prerequisites": [
+        {
+          "type": "any",
+          "clauses": [
+            {
+              "type": "attribute",
+              "target": "wits",
+              "min": 3,
+              "specialty": null
+            },
+            {
+              "type": "attribute",
+              "target": "composure",
+              "min": 3,
+              "specialty": null
+            }
+          ]
+        }
+      ],
+      "description": "Ignore penalties or gain Rote quality on Perception rolls",
+      "book": "DoW 38",
+      "prerequisites_text": "Wits or Composure 3"
+    },
+    {
+      "name": "Vision",
+      "rating": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "prerequisites": [
+        {
+          "type": "any",
+          "clauses": [
+            {
+              "type": "attribute",
+              "target": "mental_attribute",
+              "min": 4,
+              "specialty": null
+            },
+            {
+              "type": "attribute",
+              "target": "composure",
+              "min": 4,
+              "specialty": null
+            }
+          ]
+        }
+      ],
+      "description": "Use successes on Vision+Skill roll to aid an Extended Action",
+      "book": "FC 133",
+      "prerequisites_text": "Mental Attribute or Composure 4"
+    },
+    {
+      "name": "Well-Traveled",
+      "rating": [
+        1
+      ],
+      "prerequisites": [],
+      "description": "9-Again on Mental and Social rolls relating to foreign cultures",
+      "book": "Rel 85",
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Whispers",
+      "rating": [
+        1
+      ],
+      "prerequisites": [],
+      "description": "Can purchase Dream and use it as Instant Action, at the cost of sanity",
+      "book": "Myst 179",
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Ambidextrous",
+      "rating": [
+        3
+      ],
+      "prerequisites": [],
+      "description": "Remove off-hand penalty to attack",
+      "book": "WoD 110",
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Armored Fighting",
+      "rating": [
+        2,
+        4
+      ],
+      "prerequisites": [
+        {
+          "type": "attribute",
+          "target": "strength",
+          "min": 3,
+          "specialty": null
+        },
+        {
+          "type": "attribute",
+          "target": "stamina",
+          "min": 3,
+          "specialty": null
+        }
+      ],
+      "description": "Reduce heavy armor penalties by 1 (2) or 2 (4)",
+      "book": "Reload 84",
+      "prerequisites_text": "Strength 3, Stamina 3"
+    },
+    {
+      "name": "Athletics Dodge",
+      "rating": [
+        1
+      ],
+      "prerequisites": [
+        {
+          "type": "attribute",
+          "target": "dexterity",
+          "min": 2,
+          "specialty": null
+        },
+        {
+          "type": "skill",
+          "target": "athletics",
+          "min": 1,
+          "specialty": null
+        }
+      ],
+      "description": "Add Athletics rather than doubling Defense on Dodge",
+      "book": "DoW 38",
+      "prerequisites_text": "Dexterity 2, Athletics 1"
+    },
+    {
+      "name": "Brawling Dodge",
+      "rating": [
+        1
+      ],
+      "prerequisites": [
+        {
+          "type": "attribute",
+          "target": "strength",
+          "min": 2,
+          "specialty": null
+        },
+        {
+          "type": "skill",
+          "target": "brawl",
+          "min": 1,
+          "specialty": null
+        }
+      ],
+      "description": "Add Brawl rather than doubling Defense on Dodge",
+      "book": "WoD 110",
+      "prerequisites_text": "Strength 2, Brawl 1"
+    },
+    {
+      "name": "Demolisher",
+      "rating": [
+        1,
+        2
+      ],
+      "prerequisites": [
+        {
+          "type": "any",
+          "clauses": [
+            {
+              "type": "attribute",
+              "target": "strength",
+              "min": 3,
+              "specialty": null
+            },
+            {
+              "type": "attribute",
+              "target": "intelligence",
+              "min": 3,
+              "specialty": null
+            }
+          ]
+        }
+      ],
+      "description": "Can ignore 1 (1) or 2 (2) points of Durability when attempting to damage objects",
+      "book": "BotW 62",
+      "prerequisites_text": "Strength or Intelligence 3"
+    },
+    {
+      "name": "Disarm",
+      "rating": [
+        2
+      ],
+      "prerequisites": [
+        {
+          "type": "attribute",
+          "target": "dexterity",
+          "min": 3,
+          "specialty": null
+        },
+        {
+          "type": "skill",
+          "target": "weaponry",
+          "min": 1,
+          "specialty": null
+        }
+      ],
+      "description": "Can disarm if damage exceeds Dexterity",
+      "book": "WoD 110",
+      "prerequisites_text": "Dexterity 3, Weaponry 1"
+    },
+    {
+      "name": "Direction Sense",
+      "rating": [
+        1
+      ],
+      "prerequisites": [],
+      "description": "Unfailing orientation",
+      "book": "WoD 110",
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Entering Strike",
+      "rating": [
+        2
+      ],
+      "prerequisites": [
+        {
+          "type": "attribute",
+          "target": "dexterity",
+          "min": 2,
+          "specialty": null
+        },
+        {
+          "type": "skill",
+          "target": "brawl",
+          "min": 3,
+          "specialty": null
+        }
+      ],
+      "description": "Successful, defenseless Brawl strike adds damage as bonus to subsequent grappling attack",
+      "book": "Reload 72",
+      "prerequisites_text": "Dexterity 2, Brawl 3"
+    },
+    {
+      "name": "Equipped Grappling",
+      "rating": [
+        2
+      ],
+      "prerequisites": [
+        {
+          "type": "attribute",
+          "target": "dexterity",
+          "min": 3,
+          "specialty": null
+        },
+        {
+          "type": "skill",
+          "target": "brawl",
+          "min": 2,
+          "specialty": null
+        },
+        {
+          "type": "skill",
+          "target": "weaponry",
+          "min": 2,
+          "specialty": null
+        }
+      ],
+      "description": "Add size of blunt weapon (3 or less) to overpowering maneuver dice pool",
+      "book": "Reload 89",
+      "prerequisites_text": "Dexterity 3, Brawl 2, Weaponry 2"
+    },
+    {
+      "name": "Fast Reflexes",
+      "rating": [
+        1,
+        2
+      ],
+      "prerequisites": [
+        {
+          "type": "attribute",
+          "target": "dexterity",
+          "min": 3,
+          "specialty": null
+        }
+      ],
+      "description": "+1/dot to Initiative",
+      "book": "WoD 110",
+      "prerequisites_text": "Dexterity 3"
+    },
+    {
+      "name": "Fighting Finesse",
+      "rating": [
+        2
+      ],
+      "prerequisites": [
+        {
+          "type": "attribute",
+          "target": "dexterity",
+          "min": 3,
+          "specialty": null
+        },
+        {
+          "type": "skill",
+          "target": "weaponry",
+          "min": 2,
+          "specialty": null
+        }
+      ],
+      "description": "Substitute Dexterity for Strength",
+      "book": "WoD 110",
+      "prerequisites_text": "Dexterity 3, Weaponry 2"
+    },
+    {
+      "name": "Firearms Retention",
+      "rating": [
+        1
+      ],
+      "prerequisites": [
+        {
+          "type": "attribute",
+          "target": "dexterity",
+          "min": 2,
+          "specialty": null
+        },
+        {
+          "type": "attribute",
+          "target": "wits",
+          "min": 2,
+          "specialty": null
+        },
+        {
+          "type": "skill",
+          "target": "brawl",
+          "min": 2,
+          "specialty": null
+        },
+        {
+          "type": "skill",
+          "target": "firearms",
+          "min": 2,
+          "specialty": null
+        }
+      ],
+      "description": "Subtract Brawl dots from attempts to disarm by overpowering",
+      "book": "Reload 89",
+      "prerequisites_text": "Dexterity 2, Wits 2, Brawl 2, Firearms 2"
+    },
+    {
+      "name": "Fleet of Foot",
+      "rating": [
+        1,
+        2,
+        3
+      ],
+      "prerequisites": [
+        {
+          "type": "attribute",
+          "target": "strength",
+          "min": 2,
+          "specialty": null
+        }
+      ],
+      "description": "+1/dot to Speed",
+      "book": "WoD 112",
+      "prerequisites_text": "Strength 2"
+    },
+    {
+      "name": "Fresh Start",
+      "rating": [
+        1
+      ],
+      "prerequisites": [
+        {
+          "type": "merit",
+          "target": "fast_reflexes",
+          "min": 2,
+          "specialty": null
+        }
+      ],
+      "description": "Delay action into next round",
+      "book": "WoD 112",
+      "prerequisites_text": "Fast Reflexes 2"
+    },
+    {
+      "name": "Giant",
+      "rating": [
+        4
+      ],
+      "prerequisites": [],
+      "description": "+1 Size",
+      "book": "WoD 112",
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Ground and Pound",
+      "rating": [
+        2
+      ],
+      "prerequisites": [
+        {
+          "type": "merit",
+          "target": "aggressive_striking",
+          "min": 3,
+          "specialty": null
+        }
+      ],
+      "description": "Perform Takedown/Throw, gain +2 to following unarmed strike",
+      "book": "Reload 98",
+      "prerequisites_text": "Combination Blows, Boxing or Aggressive Striking 3, Grappling 2"
+    },
+    {
+      "name": "Gunslinger",
+      "rating": [
+        3
+      ],
+      "prerequisites": [
+        {
+          "type": "attribute",
+          "target": "dexterity",
+          "min": 3,
+          "specialty": null
+        },
+        {
+          "type": "skill",
+          "target": "firearms",
+          "min": 3,
+          "specialty": null
+        }
+      ],
+      "description": "Two gun attacks per round",
+      "book": "WoD 112",
+      "prerequisites_text": "Dexterity 3, Firearms 3"
+    },
+    {
+      "name": "Heavy Hands",
+      "rating": [
+        3
+      ],
+      "prerequisites": [
+        {
+          "type": "attribute",
+          "target": "strength",
+          "min": 3,
+          "specialty": null
+        },
+        {
+          "type": "skill",
+          "target": "brawl",
+          "min": 2,
+          "specialty": null
+        }
+      ],
+      "description": "+1 damage to unarmed strikes",
+      "book": "Reload 98",
+      "prerequisites_text": "Strength 3, Brawl 2"
+    },
+    {
+      "name": "Iron Stamina",
+      "rating": [
+        1,
+        2,
+        3
+      ],
+      "prerequisites": [
+        {
+          "type": "any",
+          "clauses": [
+            {
+              "type": "attribute",
+              "target": "stamina",
+              "min": 3,
+              "specialty": null
+            },
+            {
+              "type": "attribute",
+              "target": "resolve",
+              "min": 3,
+              "specialty": null
+            }
+          ]
+        }
+      ],
+      "description": "Negate fatigue/injury penalties",
+      "book": "WoD 112",
+      "prerequisites_text": "Stamina or Resolve 3"
+    },
+    {
+      "name": "Iron Stomach",
+      "rating": [
+        2
+      ],
+      "prerequisites": [
+        {
+          "type": "attribute",
+          "target": "stamina",
+          "min": 2,
+          "specialty": null
+        }
+      ],
+      "description": "Eat even unpalatable cuisine",
+      "book": "WoD 113",
+      "prerequisites_text": "Stamina 2"
+    },
+    {
+      "name": "Natural Immunity",
+      "rating": [
+        1
+      ],
+      "prerequisites": [
+        {
+          "type": "attribute",
+          "target": "stamina",
+          "min": 2,
+          "specialty": null
+        }
+      ],
+      "description": "+2 on Stamina rolls to resist illness",
+      "book": "WoD 113",
+      "prerequisites_text": "Stamina 2"
+    },
+    {
+      "name": "Outdoorsman",
+      "rating": [
+        2
+      ],
+      "prerequisites": [
+        {
+          "type": "skill",
+          "target": "survival",
+          "min": 3,
+          "specialty": null
+        }
+      ],
+      "description": "Negate environmental penalties to Survival",
+      "book": "MR 59",
+      "prerequisites_text": "Survival 3"
+    },
+    {
+      "name": "Perfect Stillness",
+      "rating": [
+        1
+      ],
+      "prerequisites": [
+        {
+          "type": "skill",
+          "target": "stealth",
+          "min": 1,
+          "specialty": null
+        }
+      ],
+      "description": "-2 to all rolls to visually detect character",
+      "book": "RoS 94",
+      "prerequisites_text": "Stealth 1"
+    },
+    {
+      "name": "Quick Draw",
+      "rating": [
+        1
+      ],
+      "prerequisites": [
+        {
+          "type": "attribute",
+          "target": "dexterity",
+          "min": 3,
+          "specialty": null
+        }
+      ],
+      "description": "Draw weapon reflexively",
+      "book": "WoD 113",
+      "prerequisites_text": "Dexterity 3"
+    },
+    {
+      "name": "Quick Healer",
+      "rating": [
+        4
+      ],
+      "prerequisites": [
+        {
+          "type": "attribute",
+          "target": "stamina",
+          "min": 4,
+          "specialty": null
+        }
+      ],
+      "description": "Heal twice as fast",
+      "book": "WoD 113",
+      "prerequisites_text": "Stamina 4"
+    },
+    {
+      "name": "Shield-Bearer",
+      "rating": [
+        1
+      ],
+      "prerequisites": [],
+      "description": "Only -1 to attack when using a shield instead of -2",
+      "book": "WAtP 89",
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Steady Driver",
+      "rating": [
+        1
+      ],
+      "prerequisites": [
+        {
+          "type": "skill",
+          "target": "drive",
+          "min": 2,
+          "specialty": null
+        }
+      ],
+      "description": "Substitute Resolve for Dexterity on Drive rolls",
+      "book": "MR 59",
+      "prerequisites_text": "Drive 2"
+    },
+    {
+      "name": "Strong Back",
+      "rating": [
+        1
+      ],
+      "prerequisites": [
+        {
+          "type": "attribute",
+          "target": "strength",
+          "min": 2,
+          "specialty": null
+        }
+      ],
+      "description": "+1 to lift or carry",
+      "book": "WoD 113",
+      "prerequisites_text": "Strength 2"
+    },
+    {
+      "name": "Strong Lungs",
+      "rating": [
+        3
+      ],
+      "prerequisites": [
+        {
+          "type": "skill",
+          "target": "athletics",
+          "min": 3,
+          "specialty": null
+        }
+      ],
+      "description": "+2 on Stamina rolls to hold breath",
+      "book": "WoD 113",
+      "prerequisites_text": "Athletics 3"
+    },
+    {
+      "name": "Student of the Blade",
+      "rating": [
+        1
+      ],
+      "prerequisites": [
+        {
+          "type": "any",
+          "clauses": [
+            {
+              "type": "merit",
+              "target": "fencing",
+              "min": 1,
+              "specialty": null
+            },
+            {
+              "type": "merit",
+              "target": "iaido",
+              "min": 1,
+              "specialty": null
+            }
+          ]
+        }
+      ],
+      "description": "May use Fighting Style with all Size 2 blades.",
+      "book": "Reload 66",
+      "prerequisites_text": "Fencing or Iaido 1"
+    },
+    {
+      "name": "Stunt Driver",
+      "rating": [
+        3
+      ],
+      "prerequisites": [
+        {
+          "type": "attribute",
+          "target": "dexterity",
+          "min": 3,
+          "specialty": null
+        }
+      ],
+      "description": "Drive and carry out another action",
+      "book": "WoD 113",
+      "prerequisites_text": "Dexterity 3"
+    },
+    {
+      "name": "Stunt Rider",
+      "rating": [
+        3
+      ],
+      "prerequisites": [
+        {
+          "type": "attribute",
+          "target": "dexterity",
+          "min": 3,
+          "specialty": null
+        }
+      ],
+      "description": "Ride and carry out another action",
+      "book": "RfR 110",
+      "prerequisites_text": "Dexterity 3"
+    },
+    {
+      "name": "The Weapon at Hand",
+      "rating": [
+        2
+      ],
+      "prerequisites": [
+        {
+          "type": "merit",
+          "target": "krav_maga",
+          "min": 2,
+          "specialty": null
+        }
+      ],
+      "description": "Reflexive Wits + Weaponry roll for improvised weapon, instant action to wield, no penalty for being improvised",
+      "book": "Reload 79",
+      "prerequisites_text": "Krav Maga 2"
+    },
+    {
+      "name": "Toxin Resistance",
+      "rating": [
+        2
+      ],
+      "prerequisites": [
+        {
+          "type": "attribute",
+          "target": "stamina",
+          "min": 3,
+          "specialty": null
+        }
+      ],
+      "description": "+2 on Stamina rolls to resist toxins",
+      "book": "WoD 113",
+      "prerequisites_text": "Stamina 3"
+    },
+    {
+      "name": "Weaponry Dodge",
+      "rating": [
+        1
+      ],
+      "prerequisites": [
+        {
+          "type": "attribute",
+          "target": "strength",
+          "min": 2,
+          "specialty": null
+        },
+        {
+          "type": "skill",
+          "target": "weaponry",
+          "min": 1,
+          "specialty": null
+        }
+      ],
+      "description": "Add Weaponry rather than doubling Defense on Dodge",
+      "book": "WoD 114",
+      "prerequisites_text": "Strength 2, Weaponry 1"
+    },
+    {
+      "name": "Weapons to Empty Hands",
+      "rating": [
+        2
+      ],
+      "prerequisites": [
+        {
+          "type": "attribute",
+          "target": "dexterity",
+          "min": 3,
+          "specialty": null
+        },
+        {
+          "type": "skill",
+          "target": "brawl",
+          "min": 3,
+          "specialty": null
+        },
+        {
+          "type": "skill",
+          "target": "weaponry",
+          "min": 3,
+          "specialty": null
+        },
+        {
+          "type": "any",
+          "clauses": [
+            {
+              "type": "merit",
+              "target": "two_weapons",
+              "min": 4,
+              "specialty": null
+            },
+            {
+              "type": "merit",
+              "target": "filipino_martial_arts",
+              "min": 4,
+              "specialty": null
+            },
+            {
+              "type": "merit",
+              "target": "knife_fighting",
+              "min": 4,
+              "specialty": null
+            }
+          ]
+        }
+      ],
+      "description": "Use Brawl instead of Weaponry for maneuver-related attacks.",
+      "book": "Reload 66",
+      "prerequisites_text": "Dexterity 3, Brawl 3, Weaponry 3, Two Weapons or Filipino Martial Arts or Knife Fighting 4"
+    },
+    {
+      "name": "Wheelman",
+      "rating": [
+        2
+      ],
+      "prerequisites": [
+        {
+          "type": "attribute",
+          "target": "dexterity",
+          "min": 2,
+          "specialty": null
+        },
+        {
+          "type": "skill",
+          "target": "drive",
+          "min": 2,
+          "specialty": null
+        }
+      ],
+      "description": "Gain 9-Again on Drive rolls",
+      "book": "MR 59",
+      "prerequisites_text": "Dexterity 2, Drive 2"
+    },
+    {
+      "name": "Alternate Identity",
+      "rating": [
+        1,
+        2,
+        4
+      ],
+      "prerequisites": [],
+      "description": "A false legal identity which can pass increasing levels of scrutiny, but degrades without maintenance.",
+      "book": "Imm 110",
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Anonymity",
+      "rating": [
+        2,
+        3,
+        4
+      ],
+      "prerequisites": [
+        {
+          "type": "attribute",
+          "target": "resolve",
+          "min": 2,
+          "specialty": null
+        },
+        {
+          "type": "any",
+          "clauses": [
+            {
+              "type": "skill",
+              "target": "larceny",
+              "min": 2,
+              "specialty": null
+            },
+            {
+              "type": "skill",
+              "target": "subterfuge",
+              "min": 2,
+              "specialty": null
+            }
+          ]
+        }
+      ],
+      "description": "-1/dot to attempts to investigate character",
+      "book": "BotW 46",
+      "prerequisites_text": "Resolve 2, Larceny or Subterfuge 2"
+    },
+    {
+      "name": "Armory",
+      "rating": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "prerequisites": [
+        {
+          "type": "merit",
+          "target": "resources",
+          "min": 3,
+          "specialty": null
+        }
+      ],
+      "description": "Own an array of weapons and armor. May be shared among multiple characters",
+      "book": "Ban 51",
+      "prerequisites_text": "Resources 3"
+    },
+    {
+      "name": "Barfly",
+      "rating": [
+        1
+      ],
+      "prerequisites": [],
+      "description": "Find ways into bars and clubs",
+      "book": "WoD 114",
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Bureaucratic Navigator",
+      "rating": [
+        2
+      ],
+      "prerequisites": [],
+      "description": "+2 to navigate a bureaucratic system",
+      "book": "Asy 51",
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Decorated",
+      "rating": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "prerequisites": [],
+      "description": "Formal awards for meritorious conduct from the military or a comparable organization",
+      "book": "DoW 39",
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Deep Rapport",
+      "rating": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "prerequisites": [],
+      "description": "Strong beneficial or harmful relationship with another character",
+      "book": "BbBB 9",
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Fame",
+      "rating": [
+        1,
+        2,
+        3
+      ],
+      "prerequisites": [],
+      "description": "Mortal acclaim, +1/dot to Socialize",
+      "book": "WoD 115",
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Fence",
+      "rating": [
+        1,
+        3
+      ],
+      "prerequisites": [
+        {
+          "type": "skill",
+          "target": "streetwise",
+          "min": 3,
+          "specialty": null
+        }
+      ],
+      "description": "Always find a way to buy and sell stolen goods",
+      "book": "Ban 51",
+      "prerequisites_text": "Streetwise 3"
+    },
+    {
+      "name": "Ingratiating Wanderer",
+      "rating": [
+        2
+      ],
+      "prerequisites": [
+        {
+          "type": "attribute",
+          "target": "manipulation",
+          "min": 3,
+          "specialty": null
+        }
+      ],
+      "description": "Gain bonus to locate authority figures in local power structures",
+      "book": "MR 58",
+      "prerequisites_text": "Manipulation 3"
+    },
+    {
+      "name": "Inspiring",
+      "rating": [
+        4
+      ],
+      "prerequisites": [
+        {
+          "type": "attribute",
+          "target": "presence",
+          "min": 4,
+          "specialty": null
+        }
+      ],
+      "description": "Help others regain Willpower",
+      "book": "WoD 115",
+      "prerequisites_text": "Presence 4"
+    },
+    {
+      "name": "Luxury",
+      "rating": [
+        2,
+        4
+      ],
+      "prerequisites": [],
+      "description": "Live a wealthy, comfortable lifestyle at the sufferance of a patron",
+      "book": "SotT 52",
+      "prerequisites_text": ""
+    },
+    {
+      "name": "New Identity",
+      "rating": [
+        1,
+        2,
+        4
+      ],
+      "prerequisites": [],
+      "description": "Establish a forged identity",
+      "book": "CTL 98",
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Resources",
+      "rating": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "prerequisites": [],
+      "description": "Disposable monthly income ranging from $500 USD at 1 to $50,000 USD at 5, with total assets ranging from several hundred GBP at 1 to millions of GBP at 5.",
+      "book": "WoD 115",
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Shadow Cult Initiation",
+      "rating": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "prerequisites": [],
+      "description": "Membership in a cult, with unique benefits to each level of initiation",
+      "book": "Mekh 121",
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Small Unit Tactics",
+      "rating": [
+        3
+      ],
+      "prerequisites": [
+        {
+          "type": "attribute",
+          "target": "manipulation",
+          "min": 3,
+          "specialty": null
+        },
+        {
+          "type": "skill",
+          "target": "persuasion",
+          "min": 3,
+          "specialty": "Leadership"
+        }
+      ],
+      "description": "When conducting a tactical maneuver with squad, leader can spend Willpower to benefit entire group",
+      "book": "DoW 39",
+      "prerequisites_text": "Manipulation 3, Persuasion 3 (Leadership)"
+    },
+    {
+      "name": "Striking Looks",
+      "rating": [
+        2,
+        4
+      ],
+      "prerequisites": [],
+      "description": "Appearance adds +1/+2 to relevant Social rolls",
+      "book": "WoD 117",
+      "prerequisites_text": ""
+    },
+    {
+      "name": "Support Network",
+      "rating": [
+        2
+      ],
+      "prerequisites": [
+        {
+          "type": "merit",
+          "target": "status",
+          "min": 1
+        }
+      ],
+      "description": "A shared community complicit in dark deeds. While you remain in good standing, you may spend Willpower for bonus dice to resist gaining a derangement from the community's practices.",
+      "book": "Imm 82",
+      "prerequisites_text": "Status"
+    },
+    {
+      "name": "Trip Sitter",
+      "rating": [
+        3
+      ],
+      "prerequisites": [
+        {
+          "type": "attribute",
+          "target": "composure",
+          "min": 3,
+          "specialty": null
+        }
+      ],
+      "description": "Help others resist side effects of drugs",
+      "book": "MT 137",
+      "prerequisites_text": "Composure 3"
+    },
+    {
+      "name": "Unobtrusive",
+      "rating": [
+        3
+      ],
+      "prerequisites": [
+        {
+          "type": "skill",
+          "target": "stealth",
+          "min": 2,
+          "specialty": null
+        }
+      ],
+      "description": "+2 to escape notice while casing a target under cover of some mundane activity. +1 to Resolve to resist The Forgetful Mind (Dominate 3)",
+      "book": "Ghou 74",
+      "prerequisites_text": "Stealth 2"
+    }
+  ]
+}

@@ -118,6 +118,10 @@ venv.bak/
 # Rope project settings
 .ropeproject
 
+# Runtime uploads (user-supplied PDFs)
+uploads/*
+!uploads/.gitkeep
+
 # mkdocs documentation
 /site
 

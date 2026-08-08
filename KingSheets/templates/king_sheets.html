@@ -1,0 +1,1894 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>KingSheets</title>
+    <link rel="stylesheet" href="/static/style.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+      body {
+        padding: 2rem clamp(1.25rem, 3vw, 2.5rem) 3rem;
+      }
+
+      .page-shell {
+        gap: 1rem;
+      }
+
+      .toolbar-card {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
+
+      .toolbar-card .status {
+        color: #93c5fd;
+        font-weight: 600;
+      }
+
+      .toolbar-actions {
+        display: flex;
+        gap: 0.6rem;
+        align-items: center;
+      }
+
+      .icon-button {
+        width: 2.2rem;
+        height: 2.2rem;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        border: 1px solid rgba(96, 165, 250, 0.28);
+        background: rgba(59, 130, 246, 0.14);
+        color: #e2e8f0;
+        text-decoration: none;
+        cursor: pointer;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+      }
+
+      .icon-button:hover,
+      .icon-button:focus-visible {
+        background: rgba(59, 130, 246, 0.2);
+        color: #f8fafc;
+        outline: none;
+        transform: none;
+      }
+
+      .kingsheets-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+        gap: 1rem;
+      }
+
+      .kingsheets-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 0.85rem;
+      }
+
+      .kingsheets-stack h2 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .kingsheets-form {
+        display: flex;
+        flex-direction: column;
+        gap: 0.85rem;
+        align-items: stretch;
+      }
+
+      .kingsheets-form .field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+      }
+
+      .kingsheets-form label {
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #93c5fd;
+      }
+
+      .kingsheets-form input,
+      .kingsheets-form textarea,
+      .kingsheets-form select {
+        width: 100%;
+        box-sizing: border-box;
+        border: 1px solid rgba(148, 163, 184, 0.24);
+        border-radius: 0.8rem;
+        background: rgba(15, 23, 42, 0.7);
+        color: #f8fafc;
+        padding: 0.8rem 0.9rem;
+        font: inherit;
+      }
+
+      .kingsheets-form textarea {
+        min-height: 180px;
+        resize: vertical;
+      }
+
+      .kingsheets-inline {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      .kingsheets-table {
+        width: 100%;
+        border-collapse: collapse;
+        color: #e2e8f0;
+      }
+
+      .kingsheets-table th,
+      .kingsheets-table td {
+        padding: 0.8rem 0.75rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+        text-align: left;
+      }
+
+      .kingsheets-table th {
+        color: #93c5fd;
+        font-size: 0.72rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+
+      .kingsheets-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+
+      .kingsheets-action-form {
+        display: inline-flex;
+      }
+
+      .kingsheets-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.6rem 0.85rem;
+        border-radius: 999px;
+        border: 1px solid rgba(96, 165, 250, 0.28);
+        background: rgba(59, 130, 246, 0.14);
+        color: #e2e8f0;
+        text-decoration: none;
+        font-weight: 600;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+      }
+
+      .kingsheets-link.secondary {
+        background: rgba(15, 23, 42, 0.45);
+      }
+
+
+      .kingsheets-preview {
+        min-height: 220px;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 0.95rem;
+        padding: 1rem;
+        background: rgba(2, 6, 23, 0.4);
+        color: #cbd5e1;
+      }
+
+      iframe {
+        width: 100%;
+        min-height: 420px;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 0.95rem;
+        background: white;
+      }
+
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(2, 6, 23, 0.62);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 1.25rem;
+        z-index: 20;
+      }
+
+      .modal-backdrop.open {
+        display: flex;
+      }
+
+      .modal {
+        width: min(560px, 100%);
+        padding: 1.25rem;
+        border-radius: 1rem;
+        background: rgba(15, 23, 42, 0.96);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        box-shadow: 0 18px 45px rgba(2, 6, 23, 0.4);
+      }
+
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 0.75rem;
+      }
+
+      .close-button {
+        padding: 0;
+        width: 2rem;
+        height: 2rem;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.55);
+        color: #f8fafc;
+        box-shadow: none;
+      }
+
+      #guided-wizard-modal .modal {
+        width: min(1180px, 98vw);
+        max-height: calc(100vh - 2.5rem);
+        overflow: auto;
+      }
+
+      .guided-wizard-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.6fr) minmax(260px, 0.4fr);
+        gap: 0.85rem;
+      }
+
+      .guided-panel {
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 0.85rem;
+        padding: 0.85rem;
+        background: rgba(2, 6, 23, 0.36);
+      }
+
+      .guided-panel .field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+      }
+
+      .guided-panel .field label {
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #93c5fd;
+      }
+
+      .guided-panel .field input,
+      .guided-panel .field textarea {
+        width: 100%;
+        box-sizing: border-box;
+        border: 1px solid rgba(148, 163, 184, 0.24);
+        border-radius: 0.8rem;
+        background: rgba(15, 23, 42, 0.7);
+        color: #f8fafc;
+        padding: 0.8rem 0.9rem;
+        font: inherit;
+        transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+      }
+
+      .guided-panel .field input::placeholder,
+      .guided-panel .field textarea::placeholder {
+        color: #94a3b8;
+      }
+
+      .guided-panel .field input:focus,
+      .guided-panel .field textarea:focus {
+        outline: none;
+        border-color: rgba(96, 165, 250, 0.7);
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        background: rgba(15, 23, 42, 0.82);
+      }
+
+      .guided-step {
+        display: none;
+      }
+
+      .guided-step.is-active {
+        display: block;
+      }
+
+      .guided-choice-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 0.55rem;
+      }
+
+      .guided-choice {
+        border: 1px solid rgba(96, 165, 250, 0.3);
+        border-radius: 0.7rem;
+        padding: 0.6rem;
+        background: rgba(15, 23, 42, 0.6);
+        color: #e2e8f0;
+        text-align: left;
+        cursor: pointer;
+      }
+
+      .guided-choice.is-selected {
+        border-color: rgba(34, 197, 94, 0.7);
+        background: rgba(20, 83, 45, 0.35);
+      }
+
+      .guided-choice strong {
+        display: block;
+        margin-bottom: 0.2rem;
+      }
+
+      .guided-choice small {
+        color: #cbd5e1;
+      }
+
+      .guided-row {
+        display: grid;
+        grid-template-columns: minmax(110px, 1fr) auto auto auto;
+        gap: 0.5rem;
+        align-items: center;
+        margin-bottom: 0.45rem;
+      }
+
+      .guided-dot-track {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.32rem;
+        min-width: 5.2rem;
+      }
+
+      .guided-dot {
+        width: 0.62rem;
+        height: 0.62rem;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.65);
+        background: rgba(15, 23, 42, 0.7);
+      }
+
+      .guided-dot.is-filled {
+        border-color: rgba(56, 189, 248, 0.9);
+        background: rgba(56, 189, 248, 0.95);
+        box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+      }
+
+      .guided-dot-button {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 999px;
+        padding: 0;
+        border: 1px solid rgba(148, 163, 184, 0.5);
+        background: rgba(15, 23, 42, 0.85);
+        box-shadow: 0 0 0 1px rgba(2, 6, 23, 0.3);
+      }
+
+      .guided-dot-button[disabled] {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
+      .guided-dot-button i {
+        pointer-events: none;
+      }
+
+      .guided-dot-button--double {
+        border-color: rgba(250, 204, 21, 0.86);
+        background: rgba(113, 63, 18, 0.75);
+        box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.28);
+      }
+
+      .guided-dot-button--double:hover,
+      .guided-dot-button--double:focus-visible {
+        border-color: rgba(254, 240, 138, 0.95);
+        background: rgba(146, 64, 14, 0.85);
+      }
+
+      .guided-actions {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+        flex-wrap: wrap;
+      }
+
+      .guided-actions button {
+        border: 1px solid rgba(148, 163, 184, 0.52);
+        box-shadow: 0 0 0 1px rgba(2, 6, 23, 0.25);
+        min-width: 2.6rem;
+      }
+
+      .guided-actions button:hover,
+      .guided-actions button:focus-visible {
+        border-color: rgba(96, 165, 250, 0.85);
+      }
+
+      .guided-actions .secondary {
+        background: rgba(15, 23, 42, 0.55);
+      }
+
+      .guided-stepper {
+        display: grid;
+        gap: 0.35rem;
+      }
+
+      .guided-stepper-item {
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 0.55rem;
+        padding: 0.4rem 0.5rem;
+        color: #94a3b8;
+        font-size: 0.88rem;
+        cursor: pointer;
+        background: rgba(15, 23, 42, 0.35);
+      }
+
+      .guided-stepper-item.is-active {
+        color: #f8fafc;
+        border-color: rgba(56, 189, 248, 0.7);
+        background: rgba(14, 116, 144, 0.2);
+      }
+
+      .guided-stepper-item.is-done {
+        color: #bbf7d0;
+        border-color: rgba(34, 197, 94, 0.5);
+      }
+
+      .guided-stepper-item:hover,
+      .guided-stepper-item:focus-visible {
+        border-color: rgba(96, 165, 250, 0.75);
+        color: #f8fafc;
+        outline: none;
+      }
+
+      .guided-review {
+        margin: 0;
+        white-space: pre-wrap;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.84rem;
+        color: #dbeafe;
+      }
+
+      .guided-merits-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+        gap: 0.7rem;
+      }
+
+      .guided-merits-panel {
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 0.75rem;
+        padding: 0.65rem;
+        background: rgba(15, 23, 42, 0.45);
+        min-height: 280px;
+      }
+
+      .guided-merits-list {
+        max-height: 330px;
+        overflow: auto;
+        display: grid;
+        gap: 0.5rem;
+      }
+
+      .guided-merit-card {
+        border: 1px solid rgba(96, 165, 250, 0.26);
+        border-radius: 0.6rem;
+        padding: 0.55rem;
+        background: rgba(2, 6, 23, 0.42);
+      }
+
+      .guided-merit-card h5 {
+        margin: 0 0 0.25rem;
+        font-size: 0.94rem;
+      }
+
+      .guided-merit-meta {
+        color: #93c5fd;
+        font-size: 0.78rem;
+      }
+
+      .guided-merit-card p {
+        margin: 0.35rem 0;
+        color: #cbd5e1;
+        font-size: 0.86rem;
+      }
+
+      .guided-merit-actions {
+        display: flex;
+        gap: 0.4rem;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .guided-merit-actions select {
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        border-radius: 0.55rem;
+        padding: 0.3rem 0.45rem;
+        background: rgba(15, 23, 42, 0.78);
+        color: #f8fafc;
+      }
+
+      .guided-merit-total {
+        margin: 0.45rem 0;
+        color: #bfdbfe;
+        font-weight: 700;
+      }
+
+      .guided-merit-total.is-capped {
+        color: #86efac;
+      }
+
+      @media (max-width: 860px) {
+        .kingsheets-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .guided-wizard-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page-shell">
+      <section class="hero-card">
+        <h1>KingSheets</h1>
+        <p>Keep your character sheets organized, editable, and available for download from one place.</p>
+      </section>
+
+      <section class="toolbar-card">
+        <div class="identity-card">
+          <span class="identity-label">Your Character Sheets</span>
+          <span class="identity-value">{{ user_id or 'Unknown user' }}</span>
+        </div>
+        <div class="status">{{ saved_count }} saved / {{ sheet_limit }}</div>
+        <div class="toolbar-actions">
+          <button class="icon-button" type="button" onclick="window.location.href='/king-sheets/wizard?user_id={{ user_id | urlencode }}'" aria-label="Open guided character creator" title="Open guided character creator" {% if not user_id %}disabled{% endif %}>
+            <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
+          </button>
+          <button class="icon-button" type="button" onclick="openDownloadModal()" aria-label="Download an editable PDF" title="Download an editable PDF">
+            <i class="fa-solid fa-download" aria-hidden="true"></i>
+          </button>
+          <button class="icon-button" type="button" onclick="openCreateModal()" {% if create_disabled %}disabled{% endif %} aria-label="Create a new sheet" title="Create a new sheet">
+            <i class="fa-solid fa-plus" aria-hidden="true"></i>
+          </button>
+        </div>
+      </section>
+
+      <section class="matrix-card">
+        <div class="matrix-header">
+          <h2>Character Sheets</h2>
+          <span class="matrix-hint">Your local character sheets live here.</span>
+        </div>
+        {% if sheets %}
+        <table class="kingsheets-table">
+          <thead>
+            <tr>
+              <th>Character</th>
+              <th>System</th>
+              <th>Created</th>
+              <th>Updated</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for sheet_item in sheets %}
+            <tr>
+              <td>{{ sheet_item.character_name or '—' }}</td>
+              <td>{{ sheet_item.system_name }}</td>
+              <td>{{ sheet_item.created_display }}</td>
+              <td>{{ sheet_item.updated_display }}</td>
+              <td>
+                <div class="kingsheets-actions">
+                  <button class="icon-button" type="button" onclick="window.location.href='/king-sheets?user_id={{ user_id }}&edit_system={{ sheet_item.system_name }}'" aria-label="Edit {{ sheet_item.system_name }}" title="Edit">
+                    <i class="fa-solid fa-pencil" aria-hidden="true"></i>
+                  </button>
+                  {% if sheet_item.pdf_filename %}
+                  <button class="icon-button" type="button" onclick="window.location.href='/uploads/{{ sheet_item.owner_id }}_{{ sheet_item.pdf_filename | urlencode }}'" aria-label="Download {{ sheet_item.system_name }}" title="Download">
+                    <i class="fa-solid fa-download" aria-hidden="true"></i>
+                  </button>
+                  {% endif %}
+                  <button class="icon-button" type="button" data-system-name="{{ sheet_item.system_name }}" data-user-id="{{ user_id or '' }}" data-sheet-id="{{ sheet_item.id }}" onclick="openUploadModalFromButton(this)" aria-label="Upload {{ sheet_item.system_name }}" title="Upload">
+                    <i class="fa-solid fa-upload" aria-hidden="true"></i>
+                  </button>
+                  <button class="icon-button" type="button" data-user-id="{{ user_id or '' }}" data-sheet-id="{{ sheet_item.id }}" onclick="openDeleteModal(this)" aria-label="Delete {{ sheet_item.system_name }}" title="Delete">
+                    <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="status">No sheets yet for this user. Create one to get started.</p>
+        {% endif %}
+      </section>
+
+    </main>
+
+    <div id="delete-sheet-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="delete-sheet-title">
+      <div class="modal">
+        <div class="modal-header">
+          <h3 id="delete-sheet-title" style="margin: 0;">Delete sheet?</h3>
+          <button class="close-button" type="button" aria-label="Close">×</button>
+        </div>
+        <p class="status" style="margin: 0 0 0.9rem;">This action permanently deletes the selected sheet and its uploaded PDF. Continue?</p>
+        <form class="kingsheets-form" action="/king-sheets/delete" method="post">
+          <input type="hidden" name="user_id" value="{{ user_id or '' }}" />
+          <input type="hidden" name="sheet_id" value="" />
+          <div class="kingsheets-inline">
+            <button type="submit">Delete sheet</button>
+            <button class="kingsheets-link secondary" type="button">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      function attachAjaxFormHandler(form) {
+        if (!(form instanceof HTMLFormElement)) {
+          return;
+        }
+        if (!form.dataset.ajaxSubmit) {
+          return;
+        }
+
+        form.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const formData = new FormData(form);
+          const response = await fetch(form.action, {
+            method: 'POST',
+            headers: {
+              'Accept': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: formData,
+            redirect: 'manual',
+          });
+
+          if (!response.ok) {
+            return;
+          }
+
+          const payload = await response.json();
+          if (payload?.redirect_url) {
+            window.location.assign(payload.redirect_url);
+          }
+        });
+      }
+
+      function attachModalBehavior(modal, closeHandler) {
+        modal.addEventListener('click', (event) => {
+          if (event.target === modal) {
+            closeHandler();
+          }
+        });
+
+        const closeButton = modal.querySelector('.close-button');
+        if (closeButton) {
+          closeButton.addEventListener('click', closeHandler);
+        }
+
+        const secondaryButton = modal.querySelector('.kingsheets-link.secondary');
+        if (secondaryButton) {
+          secondaryButton.addEventListener('click', closeHandler);
+        }
+
+        const form = modal.querySelector('form');
+        attachAjaxFormHandler(form);
+      }
+
+      function buildSheetModal({ id, titleId, title, description, formMarkup, closeHandler }) {
+        const modal = document.createElement('div');
+        modal.id = id;
+        modal.className = 'modal-backdrop';
+        modal.setAttribute('role', 'dialog');
+        modal.setAttribute('aria-modal', 'true');
+        modal.setAttribute('aria-labelledby', titleId);
+        modal.innerHTML = `
+          <div class="modal">
+            <div class="modal-header">
+              <h3 id="${titleId}" style="margin: 0;">${title}</h3>
+              <button class="close-button" type="button" aria-label="Close">×</button>
+            </div>
+            ${description ? `<p class="status" style="margin: 0 0 0.9rem;">${description}</p>` : ''}
+            ${formMarkup}
+          </div>
+        `;
+
+        attachModalBehavior(modal, closeHandler);
+        document.body.appendChild(modal);
+        return modal;
+      }
+
+      function buildCreateModal() {
+        return buildSheetModal({
+          id: 'create-sheet-modal',
+          titleId: 'create-sheet-title',
+          title: 'Create a new sheet',
+          description: 'Start with the World of Darkness Mortals template and save your notes locally.',
+          formMarkup: `
+            <form class="kingsheets-form" action="/king-sheets" method="post" enctype="multipart/form-data" data-ajax-submit="true">
+              <input type="hidden" name="user_id" value="{{ user_id or '' }}" />
+              <input type="hidden" name="create_new" value="true" />
+              <input type="hidden" name="submitted_via_ajax" value="true" />
+              <div class="field">
+                <label for="modal_system_name">System</label>
+                <select id="modal_system_name" name="system_name">
+                  <option value="World of Darkness Mortals">World of Darkness Mortals</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="modal_character_name">Character name</label>
+                <input id="modal_character_name" name="character_name" type="text" placeholder="Character name" />
+              </div>
+              <div class="field">
+                <label for="modal_body_html">Notes</label>
+                <textarea id="modal_body_html" name="body_html" placeholder="Add your character notes here."></textarea>
+              </div>
+              <div class="field">
+                <label for="modal_pdf_file">Upload a PDF</label>
+                <input id="modal_pdf_file" name="pdf_file" type="file" accept="application/pdf" />
+              </div>
+              <div class="kingsheets-inline">
+                <button type="submit">Save sheet</button>
+                <button class="kingsheets-link secondary" type="button">Cancel</button>
+              </div>
+            </form>
+          `,
+          closeHandler: closeCreateModal,
+        });
+      }
+
+      function buildUploadModal() {
+        return buildSheetModal({
+          id: 'upload-sheet-modal',
+          titleId: 'upload-sheet-title',
+          title: 'Upload a new PDF',
+          description: 'Replace the stored PDF for this sheet with a new upload.',
+          formMarkup: `
+            <form class="kingsheets-form" action="/king-sheets" method="post" enctype="multipart/form-data" data-ajax-submit="true">
+              <input type="hidden" name="user_id" value="{{ user_id or '' }}" />
+              <input type="hidden" name="system_name" value="World of Darkness Mortals" />
+              <input type="hidden" name="create_new" value="false" />
+              <input type="hidden" name="submitted_via_ajax" value="true" />
+              <input type="hidden" name="sheet_id" value="" />
+              <div class="field">
+                <label for="modal_upload_pdf_file">PDF file</label>
+                <input id="modal_upload_pdf_file" name="pdf_file" type="file" accept="application/pdf" required />
+              </div>
+              <div class="kingsheets-inline">
+                <button type="submit">Upload PDF</button>
+                <button class="kingsheets-link secondary" type="button">Cancel</button>
+              </div>
+            </form>
+          `,
+          closeHandler: closeUploadModal,
+        });
+      }
+
+      function buildToolbarUploadModal() {
+        return buildSheetModal({
+          id: 'toolbar-upload-sheet-modal',
+          titleId: 'toolbar-upload-sheet-title',
+          title: 'Create a new sheet from a PDF',
+          description: 'Create a new table row and save this PDF as a new sheet.',
+          formMarkup: `
+            <form class="kingsheets-form" action="/king-sheets" method="post" enctype="multipart/form-data" data-ajax-submit="true">
+              <input type="hidden" name="user_id" value="{{ user_id or '' }}" />
+              <input type="hidden" name="system_name" value="World of Darkness Mortals" />
+              <input type="hidden" name="create_new" value="true" />
+              <input type="hidden" name="submitted_via_ajax" value="true" />
+              <div class="field">
+                <label for="modal_toolbar_upload_character_name">Character name</label>
+                <input id="modal_toolbar_upload_character_name" name="character_name" type="text" placeholder="Character name" />
+              </div>
+              <div class="field">
+                <label for="modal_toolbar_upload_body_html">Notes</label>
+                <textarea id="modal_toolbar_upload_body_html" name="body_html" placeholder="Add your character notes here."></textarea>
+              </div>
+              <div class="field">
+                <label for="modal_toolbar_upload_pdf_file">PDF file</label>
+                <input id="modal_toolbar_upload_pdf_file" name="pdf_file" type="file" accept="application/pdf" required />
+              </div>
+              <div class="kingsheets-inline">
+                <button type="submit">Create sheet</button>
+                <button class="kingsheets-link secondary" type="button">Cancel</button>
+              </div>
+            </form>
+          `,
+          closeHandler: closeToolbarUploadModal,
+        });
+      }
+
+      function buildDownloadModal() {
+        const modal = document.createElement('div');
+        modal.id = 'download-system-modal';
+        modal.className = 'modal-backdrop';
+        modal.setAttribute('role', 'dialog');
+        modal.setAttribute('aria-modal', 'true');
+        modal.setAttribute('aria-labelledby', 'download-system-title');
+        modal.innerHTML = `
+          <div class="modal">
+            <div class="modal-header">
+              <h3 id="download-system-title" style="margin: 0;">Download an editable PDF</h3>
+              <button class="close-button" type="button" aria-label="Close">×</button>
+            </div>
+            <p class="status" style="margin: 0 0 0.9rem;">Download an editable pdf of an available system</p>
+            <form class="kingsheets-form" id="download-system-form">
+              <div class="field">
+                <label for="modal_download_system">System</label>
+                <select id="modal_download_system" name="download_system" required>
+                  {% for system in available_systems %}
+                  <option value="{{ system.label }}" data-pdf-url="{{ system.pdf_url }}">{{ system.label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="kingsheets-inline">
+                <button type="submit">Open PDF</button>
+                <button class="kingsheets-link secondary" type="button">Cancel</button>
+              </div>
+            </form>
+          </div>
+        `;
+
+        modal.addEventListener('click', (event) => {
+          if (event.target === modal) {
+            closeDownloadModal();
+          }
+        });
+
+        modal.querySelector('.close-button').addEventListener('click', closeDownloadModal);
+        modal.querySelector('.kingsheets-link.secondary').addEventListener('click', closeDownloadModal);
+        modal.querySelector('#download-system-form').addEventListener('submit', (event) => {
+          event.preventDefault();
+          const select = modal.querySelector('#modal_download_system');
+          const selectedOption = select.options[select.selectedIndex];
+          const pdfUrl = selectedOption?.dataset.pdfUrl;
+          if (pdfUrl) {
+            const link = document.createElement('a');
+            link.href = pdfUrl;
+            link.download = '';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          }
+          closeDownloadModal();
+        });
+
+        document.body.appendChild(modal);
+        return modal;
+      }
+
+      function buildGuidedWizardModal() {
+        return buildSheetModal({
+          id: 'guided-wizard-modal',
+          titleId: 'guided-wizard-title',
+          title: 'Guided Character Creation',
+          description: '',
+          formMarkup: `
+            <div class="guided-wizard-grid">
+              <section class="guided-panel">
+                <div style="display:flex; justify-content:space-between; gap:0.7rem; align-items:center; margin-bottom:0.5rem;">
+                  <strong id="guided-step-title">Step 1: Concept</strong>
+                  <span id="guided-step-count">1 / 11</span>
+                </div>
+                <p id="guided-concept-reminder" style="display:none; margin:0 0 0.65rem; color:#bfdbfe;"></p>
+
+                <div class="guided-step" data-step="1">
+                  <p style="margin-top:0;">Describe what your character is at their core.</p>
+                  <div class="field">
+                    <label for="guided-concept">Concept (3-5 words)</label>
+                    <input id="guided-concept" type="text" maxlength="120" placeholder="Ex: Haunted private investigator" />
+                  </div>
+                </div>
+
+                <div class="guided-step" data-step="2">
+                  <p style="margin-top:0;">Choose one Vice and one Virtue.</p>
+                  <h4 style="margin:0.35rem 0;">Vice</h4>
+                  <div id="guided-vice-grid" class="guided-choice-grid"></div>
+                  <h4 style="margin:0.75rem 0 0.35rem;">Virtue</h4>
+                  <div id="guided-virtue-grid" class="guided-choice-grid"></div>
+                </div>
+
+                <div class="guided-step" data-step="3">
+                  <p style="margin-top:0;">Choose best and worst Attribute categories (secondary is automatic).</p>
+                  <h4 style="margin:0.35rem 0;">Best</h4>
+                  <div id="guided-attr-best" class="guided-choice-grid"></div>
+                  <h4 style="margin:0.75rem 0 0.35rem;">Worst</h4>
+                  <div id="guided-attr-worst" class="guided-choice-grid"></div>
+                  <p id="guided-attr-priority-summary" style="margin:0.7rem 0 0;"></p>
+                </div>
+
+                <div class="guided-step" data-step="4">
+                  <p style="margin-top:0;">Power: spend exactly 5 points among Intelligence, Strength, Presence. The 5th dot costs 2 points.</p>
+                  <div id="guided-power-rows"></div>
+                  <p id="guided-power-budget" style="margin:0.5rem 0 0;"></p>
+                </div>
+
+                <div class="guided-step" data-step="5">
+                  <p style="margin-top:0;">Finesse: spend exactly 4 points among Dexterity, Wits, Manipulation. The 5th dot costs 2 points.</p>
+                  <div id="guided-finesse-rows"></div>
+                  <p id="guided-finesse-budget" style="margin:0.5rem 0 0;"></p>
+                </div>
+
+                <div class="guided-step" data-step="6">
+                  <p style="margin-top:0;">Resistance: spend exactly 3 points among Stamina, Resolve, Composure. The 5th dot costs 2 points.</p>
+                  <div id="guided-resistance-rows"></div>
+                  <p id="guided-resistance-budget" style="margin:0.5rem 0 0;"></p>
+                </div>
+
+                <div class="guided-step" data-step="7">
+                  <p style="margin-top:0;">Choose best and worst Skill categories (secondary is automatic).</p>
+                  <h4 style="margin:0.35rem 0;">Best</h4>
+                  <div id="guided-skill-best" class="guided-choice-grid"></div>
+                  <h4 style="margin:0.75rem 0 0.35rem;">Worst</h4>
+                  <div id="guided-skill-worst" class="guided-choice-grid"></div>
+                  <p id="guided-skill-priority-summary" style="margin:0.7rem 0 0;"></p>
+                </div>
+
+                <div class="guided-step" data-step="8">
+                  <p style="margin-top:0;">Mental skills: spend exactly 11 dots.</p>
+                  <div id="guided-mental-rows"></div>
+                  <p id="guided-mental-budget" style="margin:0.5rem 0 0;"></p>
+                </div>
+
+                <div class="guided-step" data-step="9">
+                  <p style="margin-top:0;">Physical skills: spend exactly 7 dots.</p>
+                  <div id="guided-physical-rows"></div>
+                  <p id="guided-physical-budget" style="margin:0.5rem 0 0;"></p>
+                </div>
+
+                <div class="guided-step" data-step="10">
+                  <p style="margin-top:0;">Social skills: spend exactly 4 dots.</p>
+                  <div id="guided-social-rows"></div>
+                  <p id="guided-social-budget" style="margin:0.5rem 0 0;"></p>
+                </div>
+
+                <div class="guided-step" data-step="11">
+                  <p style="margin-top:0;">Choose Merits from the full catalog. Search, read details, and add selections.</p>
+                  <div class="guided-merits-layout">
+                    <section class="guided-merits-panel">
+                      <div class="field" style="margin-bottom:0.55rem;">
+                        <label for="guided-merit-search">Search merits</label>
+                        <input id="guided-merit-search" type="text" placeholder="Search by name, prerequisite, or description" />
+                      </div>
+                      <div id="guided-merits-catalog" class="guided-merits-list"></div>
+                    </section>
+                    <section class="guided-merits-panel">
+                      <div class="guided-merit-total" id="guided-merit-total">Selected merit points: 0 / 7</div>
+                      <div id="guided-merits-selected" class="guided-merits-list"></div>
+                    </section>
+                  </div>
+                </div>
+
+                <div class="guided-step" data-step="12">
+                  <p style="margin-top:0;">Review your choices and export JSON.</p>
+                  <pre id="guided-review" class="guided-review"></pre>
+                </div>
+
+                <div class="guided-actions">
+                  <button id="guided-prev" class="secondary" type="button" aria-label="Previous step"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i></button>
+                  <button id="guided-next" type="button" aria-label="Next step"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
+                  <button id="guided-export" type="button" style="display:none;">Export JSON</button>
+                </div>
+              </section>
+
+              <aside class="guided-panel">
+                <h4 style="margin-top:0;">Progress</h4>
+                <div id="guided-stepper" class="guided-stepper"></div>
+                <h4 style="margin:0.9rem 0 0.35rem;">Current picks</h4>
+                <div id="guided-summary" style="font-size:0.88rem; color:#cbd5e1;"></div>
+              </aside>
+            </div>
+          `,
+          closeHandler: closeGuidedWizardModal,
+        });
+      }
+
+      function openGuidedWizardModal() {
+        let modal = document.getElementById('guided-wizard-modal');
+        if (!modal) {
+          modal = buildGuidedWizardModal();
+          initializeGuidedWizard(modal);
+        }
+        modal.classList.add('open');
+      }
+
+      function closeGuidedWizardModal() {
+        const modal = document.getElementById('guided-wizard-modal');
+        if (modal) {
+          modal.classList.remove('open');
+        }
+      }
+
+      function initializeGuidedWizard(modal) {
+        const VICES = [
+          { value: 'Pride', description: 'You value your own accomplishments and believe you deserve recognition.' },
+          { value: 'Greed', description: 'You are driven by the desire to acquire and possess more.' },
+          { value: 'Lust', description: 'You are driven by desire and seek gratification through passion.' },
+          { value: 'Envy', description: 'You resent what others have and desire what belongs to them.' },
+          { value: 'Gluttony', description: 'You indulge your appetites and have difficulty denying yourself pleasure.' },
+          { value: 'Wrath', description: 'You respond to problems with anger, aggression, or violence.' },
+          { value: 'Sloth', description: 'You avoid effort and responsibility, preferring the path of least resistance.' },
+        ];
+        const VIRTUES = [
+          { value: 'Faith', description: 'You place your trust in something greater than yourself.' },
+          { value: 'Hope', description: 'You believe that things can become better, even in difficult circumstances.' },
+          { value: 'Charity', description: 'You are motivated by compassion and a desire to help others.' },
+          { value: 'Fortitude', description: 'You endure hardship and refuse to give up when things become difficult.' },
+          { value: 'Justice', description: 'You believe people should be treated fairly and that wrongs should be corrected.' },
+          { value: 'Prudence', description: 'You think carefully before acting and consider the consequences of your choices.' },
+          { value: 'Temperance', description: 'You exercise restraint and seek balance rather than excess.' },
+        ];
+
+        const ATTRIBUTE_CATEGORIES = ['power', 'finesse', 'resistance'];
+        const ATTRIBUTE_FIELDS = {
+          power: ['intelligence', 'strength', 'presence'],
+          finesse: ['dexterity', 'wits', 'manipulation'],
+          resistance: ['stamina', 'resolve', 'composure'],
+        };
+        const SKILL_CATEGORIES = ['mental', 'physical', 'social'];
+        const SKILL_FIELDS = {
+          mental: ['academics', 'computer', 'crafts', 'investigation', 'medicine', 'occult', 'politics', 'science'],
+          physical: ['athletics', 'brawl', 'drive', 'firearms', 'larceny', 'stealth', 'survival', 'weaponry'],
+          social: ['animal_ken', 'empathy', 'expression', 'intimidation', 'persuasion', 'socialize', 'streetwise', 'subterfuge'],
+        };
+
+        const BASE_TEMPLATE = {
+          sheet_type: 'NWoD 1-Page Character Sheet',
+          system: 'World of Darkness',
+          setting: 'Mortals',
+          source_pdf: 'KingSheets/Systems/World of Darkness/Mortals/NWoD1-Page_Editable.pdf',
+          character_details: {
+            name: '', player: '', age: '', concept: '', virtue: '', vice: '', chronicle: '', faction: '', group_name: '',
+          },
+          attributes: {
+            mental: { intelligence: '', wits: '', resolve: '' },
+            physical: { strength: '', dexterity: '', stamina: '' },
+            social: { presence: '', manipulation: '', composure: '' },
+          },
+          skills: {
+            mental: { academics: '', computer: '', crafts: '', investigation: '', medicine: '', occult: '', politics: '', science: '' },
+            physical: { athletics: '', brawl: '', drive: '', firearms: '', larceny: '', stealth: '', survival: '', weaponry: '' },
+            social: { animal_ken: '', empathy: '', expression: '', intimidation: '', persuasion: '', socialize: '', streetwise: '', subterfuge: '' },
+          },
+          other_details: {
+            merits: [], flaws: [], health: '', willpower: '', size: '', speed: '', defense: '', armor: '', initiative_mod: '', experience: '', morality: '', weapons: [], equipment: [],
+          },
+          rules_reference: {
+            attributes: '5/4/3', skills: '11/7/4 (+3 specialties)', merits: '7', health_formula: 'Stamina + Size', willpower_formula: 'Resolve + Composure',
+            size_reference: '5 for adult humans', defense_formula: 'Lowest of Dexterity or Wits', initiative_formula: 'Dexterity + Composure', speed_formula: 'Strength + Dexterity + 5', starting_morality: '7',
+          },
+          copyright: 'Copyright 2004 White Wolf Publishing http://www.worldofdarkness.com',
+        };
+
+        const STEP_LABELS = [
+          'Concept',
+          'Virtue and Vice',
+          'Attribute Categories',
+          'Power Attributes',
+          'Finesse Attributes',
+          'Resistance Attributes',
+          'Skill Categories',
+          'Mental Skills',
+          'Physical Skills',
+          'Social Skills',
+          'Merits',
+          'Review',
+        ];
+
+        const state = {
+          step: 1,
+          concept: '',
+          virtue: '',
+          vice: '',
+          attributePriority: { best: '', middle: '', worst: '' },
+          skillPriority: { best: '', middle: '', worst: '' },
+          attributes: {},
+          skills: {},
+          meritsCatalog: [],
+          meritsLoaded: false,
+          meritSearch: '',
+          selectedMerits: [],
+        };
+
+        Object.values(ATTRIBUTE_FIELDS).forEach((fields) => {
+          fields.forEach((field) => {
+            state.attributes[field] = 1;
+          });
+        });
+        Object.values(SKILL_FIELDS).forEach((fields) => {
+          fields.forEach((field) => {
+            state.skills[field] = 0;
+          });
+        });
+
+        const stepTitle = modal.querySelector('#guided-step-title');
+        const stepCount = modal.querySelector('#guided-step-count');
+        const conceptReminder = modal.querySelector('#guided-concept-reminder');
+        const prevButton = modal.querySelector('#guided-prev');
+        const nextButton = modal.querySelector('#guided-next');
+        const exportButton = modal.querySelector('#guided-export');
+
+        function titleize(value) {
+          return String(value || '').replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+        }
+
+        function setStatus(message, isError = false) {
+          void message;
+          void isError;
+        }
+
+        function deriveMiddle(best, worst, categories) {
+          return categories.find((value) => value !== best && value !== worst) || '';
+        }
+
+        function attributeCost(dots) {
+          if (dots <= 4) {
+            return dots - 1;
+          }
+          return 5;
+        }
+
+        function skillCost(dots) {
+          if (dots <= 4) {
+            return dots;
+          }
+          return 6;
+        }
+
+        function budgetForCategory(priorityState, category, budgetMap) {
+          if (priorityState.best === category) {
+            return budgetMap.best;
+          }
+          if (priorityState.middle === category) {
+            return budgetMap.middle;
+          }
+          if (priorityState.worst === category) {
+            return budgetMap.worst;
+          }
+          return 0;
+        }
+
+        function getAttributeSpent(category) {
+          return (ATTRIBUTE_FIELDS[category] || []).reduce((sum, field) => sum + attributeCost(state.attributes[field]), 0);
+        }
+
+        function getSkillSpent(category) {
+          return (SKILL_FIELDS[category] || []).reduce((sum, field) => sum + skillCost(state.skills[field]), 0);
+        }
+
+        function findAttributeCategory(fieldName) {
+          return ATTRIBUTE_CATEGORIES.find((category) => ATTRIBUTE_FIELDS[category].includes(fieldName)) || '';
+        }
+
+        function findSkillCategory(fieldName) {
+          return SKILL_CATEGORIES.find((category) => SKILL_FIELDS[category].includes(fieldName)) || '';
+        }
+
+        function canIncreaseAttribute(fieldName) {
+          if (state.attributes[fieldName] >= 5) {
+            return false;
+          }
+          const category = findAttributeCategory(fieldName);
+          const budget = budgetForCategory(state.attributePriority, category, { best: 5, middle: 4, worst: 3 });
+          if (!budget) {
+            return false;
+          }
+          const currentDots = state.attributes[fieldName];
+          const extraCost = attributeCost(currentDots + 1) - attributeCost(currentDots);
+          return getAttributeSpent(category) + extraCost <= budget;
+        }
+
+        function canIncreaseSkill(fieldName) {
+          if (state.skills[fieldName] >= 5) {
+            return false;
+          }
+          const category = findSkillCategory(fieldName);
+          const budget = budgetForCategory(state.skillPriority, category, { best: 11, middle: 7, worst: 4 });
+          if (!budget) {
+            return false;
+          }
+          const currentDots = state.skills[fieldName];
+          const extraCost = skillCost(currentDots + 1) - skillCost(currentDots);
+          return getSkillSpent(category) + extraCost <= budget;
+        }
+
+        function meritRatingToText(ratingArray) {
+          const ratings = Array.isArray(ratingArray) ? ratingArray : [];
+          if (!ratings.length) {
+            return '-';
+          }
+          return ratings.join('/');
+        }
+
+        function selectedMeritPoints() {
+          return state.selectedMerits.reduce((sum, merit) => sum + Number(merit.rating || 0), 0);
+        }
+
+        function canAddMeritWithRating(ratingValue) {
+          return selectedMeritPoints() + Number(ratingValue || 0) <= 7;
+        }
+
+        function loadMeritsCatalog() {
+          const meritsPath = '/KingSheets/Systems/World%20of%20Darkness/Mortals/Merits.JSON';
+          fetch(meritsPath)
+            .then((response) => response.ok ? response.json() : { merits: [] })
+            .then((payload) => {
+              const merits = Array.isArray(payload?.merits) ? payload.merits : [];
+              state.meritsCatalog = merits.map((entry) => ({
+                name: String(entry.name || '').trim(),
+                description: String(entry.description || '').trim(),
+                prerequisites: Array.isArray(entry.prerequisites) ? entry.prerequisites : [],
+                prerequisitesText: String(entry.prerequisites_text || '').trim(),
+                book: String(entry.book || '').trim(),
+                ratingOptions: Array.isArray(entry.rating) && entry.rating.length ? entry.rating.map((value) => Number(value)).filter((value) => Number.isFinite(value)) : [1],
+              })).filter((entry) => entry.name);
+              state.meritsLoaded = true;
+              render();
+            })
+            .catch(() => {
+              state.meritsLoaded = true;
+              state.meritsCatalog = [];
+              render();
+            });
+        }
+
+        function renderMeritsStep() {
+          const catalogEl = modal.querySelector('#guided-merits-catalog');
+          const selectedEl = modal.querySelector('#guided-merits-selected');
+          const totalEl = modal.querySelector('#guided-merit-total');
+          const searchEl = modal.querySelector('#guided-merit-search');
+
+          if (!catalogEl || !selectedEl || !totalEl || !searchEl) {
+            return;
+          }
+
+          searchEl.value = state.meritSearch;
+          searchEl.oninput = (event) => {
+            state.meritSearch = String(event.target.value || '').toLowerCase();
+            renderMeritsStep();
+          };
+
+          const spentPoints = selectedMeritPoints();
+          const remainingPoints = Math.max(0, 7 - spentPoints);
+          totalEl.textContent = `Merit points spent: ${spentPoints} / 7 (remaining ${remainingPoints})`;
+          totalEl.classList.toggle('is-capped', spentPoints === 7);
+
+          const filteredCatalog = state.meritsCatalog.filter((merit) => {
+            const haystack = `${merit.name} ${merit.description} ${merit.prerequisitesText} ${merit.book}`.toLowerCase();
+            return !state.meritSearch || haystack.includes(state.meritSearch);
+          });
+
+          catalogEl.innerHTML = '';
+          if (!state.meritsLoaded) {
+            catalogEl.innerHTML = '<div class="guided-merit-card">Loading merits…</div>';
+          } else if (!filteredCatalog.length) {
+            catalogEl.innerHTML = '<div class="guided-merit-card">No merits match your search.</div>';
+          } else {
+            filteredCatalog.forEach((merit) => {
+              const alreadySelected = state.selectedMerits.some((selected) => selected.name === merit.name);
+              const defaultRating = merit.ratingOptions[0] || 1;
+              const canAdd = !alreadySelected && canAddMeritWithRating(defaultRating);
+
+              const card = document.createElement('article');
+              card.className = 'guided-merit-card';
+              card.innerHTML = `
+                <h5>${merit.name}</h5>
+                <div class="guided-merit-meta">Rating: ${meritRatingToText(merit.ratingOptions)}${merit.book ? ` | ${merit.book}` : ''}</div>
+                ${merit.prerequisitesText ? `<div class="guided-merit-meta">Prereq: ${merit.prerequisitesText}</div>` : ''}
+                ${merit.description ? `<p>${merit.description}</p>` : ''}
+              `;
+              const actions = document.createElement('div');
+              actions.className = 'guided-merit-actions';
+              const addButton = document.createElement('button');
+              addButton.type = 'button';
+              addButton.innerHTML = '<i class="fa-solid fa-plus" aria-hidden="true"></i>';
+              addButton.setAttribute('aria-label', `Add merit ${merit.name}`);
+              addButton.disabled = !canAdd;
+              if (alreadySelected) {
+                addButton.title = 'Already selected';
+              } else if (!canAdd) {
+                addButton.title = 'Not enough merit points remaining for this rating';
+              }
+              addButton.addEventListener('click', () => {
+                if (!canAdd) {
+                  return;
+                }
+                state.selectedMerits.push({
+                  name: merit.name,
+                  rating: defaultRating,
+                  ratingOptions: merit.ratingOptions,
+                });
+                render();
+              });
+              actions.appendChild(addButton);
+              card.appendChild(actions);
+              catalogEl.appendChild(card);
+            });
+          }
+
+          selectedEl.innerHTML = '';
+          if (!state.selectedMerits.length) {
+            selectedEl.innerHTML = '<div class="guided-merit-card">No merits selected yet.</div>';
+          } else {
+            state.selectedMerits.forEach((selectedMerit, index) => {
+              const card = document.createElement('article');
+              card.className = 'guided-merit-card';
+              card.innerHTML = `<h5>${selectedMerit.name}</h5>`;
+              const actions = document.createElement('div');
+              actions.className = 'guided-merit-actions';
+
+              const ratingSelect = document.createElement('select');
+              selectedMerit.ratingOptions.forEach((rating) => {
+                const option = document.createElement('option');
+                option.value = String(rating);
+                option.textContent = `${rating} dot${rating === 1 ? '' : 's'}`;
+                option.selected = rating === selectedMerit.rating;
+                ratingSelect.appendChild(option);
+              });
+              ratingSelect.addEventListener('change', (event) => {
+                const nextValue = Number(event.target.value || selectedMerit.rating);
+                const pointsWithoutCurrent = selectedMeritPoints() - Number(selectedMerit.rating || 0);
+                if (pointsWithoutCurrent + nextValue > 7) {
+                  event.target.value = String(selectedMerit.rating);
+                  return;
+                }
+                selectedMerit.rating = nextValue;
+                render();
+              });
+
+              const removeButton = document.createElement('button');
+              removeButton.type = 'button';
+              removeButton.className = 'secondary';
+              removeButton.innerHTML = '<i class="fa-solid fa-trash" aria-hidden="true"></i>';
+              removeButton.setAttribute('aria-label', `Remove merit ${selectedMerit.name}`);
+              removeButton.addEventListener('click', () => {
+                state.selectedMerits.splice(index, 1);
+                render();
+              });
+
+              actions.appendChild(ratingSelect);
+              actions.appendChild(removeButton);
+              card.appendChild(actions);
+              selectedEl.appendChild(card);
+            });
+          }
+        }
+
+        function buildChoices(containerId, options, selectedValue, onSelect) {
+          const container = modal.querySelector(`#${containerId}`);
+          if (!container) {
+            return;
+          }
+          container.innerHTML = '';
+          options.forEach((item) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'guided-choice';
+            if (item.value === selectedValue) {
+              button.classList.add('is-selected');
+            }
+            button.innerHTML = `<strong>${item.value}</strong>${item.description ? `<small>${item.description}</small>` : ''}`;
+            button.addEventListener('click', () => onSelect(item.value));
+            container.appendChild(button);
+          });
+        }
+
+        function buildDotRows(containerId, fields, valueMap, onDecrement, onIncrement, getRowMeta) {
+          const container = modal.querySelector(`#${containerId}`);
+          if (!container) {
+            return;
+          }
+          container.innerHTML = '';
+          fields.forEach((fieldName) => {
+            const meta = typeof getRowMeta === 'function' ? getRowMeta(fieldName) : {};
+            const row = document.createElement('div');
+            row.className = 'guided-row';
+
+            const label = document.createElement('span');
+            label.textContent = titleize(fieldName);
+
+            const minus = document.createElement('button');
+            minus.type = 'button';
+            minus.className = 'guided-dot-button';
+            minus.innerHTML = '<i class="fa-solid fa-minus" aria-hidden="true"></i>';
+            minus.disabled = Boolean(meta.canDecrease === false);
+            minus.setAttribute('aria-label', `Decrease ${titleize(fieldName)}`);
+            minus.addEventListener('click', () => onDecrement(fieldName));
+
+            const dotTrack = document.createElement('div');
+            dotTrack.className = 'guided-dot-track';
+            for (let dotIndex = 1; dotIndex <= 5; dotIndex += 1) {
+              const dot = document.createElement('span');
+              dot.className = 'guided-dot';
+              if (dotIndex <= valueMap[fieldName]) {
+                dot.classList.add('is-filled');
+              }
+              dotTrack.appendChild(dot);
+            }
+
+            const plus = document.createElement('button');
+            plus.type = 'button';
+            plus.className = 'guided-dot-button';
+            plus.innerHTML = '<i class="fa-solid fa-plus" aria-hidden="true"></i>';
+            plus.disabled = Boolean(meta.canIncrease === false);
+            plus.setAttribute('aria-label', `Increase ${titleize(fieldName)}`);
+            if (plus.disabled) {
+              plus.title = 'Not enough points to purchase another dot.';
+            }
+            if (meta.doubleCostAvailable) {
+              plus.classList.add('guided-dot-button--double');
+              plus.title = 'This raises 4 to 5 and spends 2 points (double cost).';
+            }
+            plus.addEventListener('click', () => onIncrement(fieldName));
+
+            row.appendChild(label);
+            row.appendChild(minus);
+            row.appendChild(dotTrack);
+            row.appendChild(plus);
+            container.appendChild(row);
+          });
+        }
+
+        function validateStep() {
+          if (state.step === 1) {
+            state.concept = (modal.querySelector('#guided-concept')?.value || '').trim();
+            if (!state.concept) {
+              return 'Please enter a character concept.';
+            }
+          }
+
+          if (state.step === 2 && (!state.virtue || !state.vice)) {
+            return 'Choose one Virtue and one Vice.';
+          }
+
+          if (state.step === 3 && (!state.attributePriority.best || !state.attributePriority.worst || !state.attributePriority.middle)) {
+            return 'Choose best and worst attribute categories.';
+          }
+
+          if (state.step >= 4 && state.step <= 6) {
+            const category = state.step === 4 ? 'power' : state.step === 5 ? 'finesse' : 'resistance';
+            const expected = budgetForCategory(state.attributePriority, category, { best: 5, middle: 4, worst: 3 });
+            const spent = getAttributeSpent(category);
+            if (spent !== expected) {
+              return `${titleize(category)} attributes must spend exactly ${expected} points.`;
+            }
+          }
+
+          if (state.step === 7 && (!state.skillPriority.best || !state.skillPriority.worst || !state.skillPriority.middle)) {
+            return 'Choose best and worst skill categories.';
+          }
+
+          if (state.step >= 8 && state.step <= 10) {
+            const category = state.step === 8 ? 'mental' : state.step === 9 ? 'physical' : 'social';
+            const expected = budgetForCategory(state.skillPriority, category, { best: 11, middle: 7, worst: 4 });
+            const spent = getSkillSpent(category);
+            if (spent !== expected) {
+              return `${titleize(category)} skills must spend exactly ${expected} dots.`;
+            }
+          }
+
+          return '';
+        }
+
+        function renderStepper() {
+          const stepper = modal.querySelector('#guided-stepper');
+          stepper.innerHTML = '';
+          STEP_LABELS.forEach((label, index) => {
+            const item = document.createElement('div');
+            item.className = 'guided-stepper-item';
+            const stepNumber = index + 1;
+            item.setAttribute('role', 'button');
+            item.setAttribute('tabindex', '0');
+            if (stepNumber < state.step) {
+              item.classList.add('is-done');
+            }
+            if (stepNumber === state.step) {
+              item.classList.add('is-active');
+            }
+            item.textContent = `${stepNumber}. ${label}`;
+            item.addEventListener('click', () => {
+              state.step = stepNumber;
+              render();
+            });
+            item.addEventListener('keydown', (event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                state.step = stepNumber;
+                render();
+              }
+            });
+            stepper.appendChild(item);
+          });
+        }
+
+        function buildResultJson() {
+          const data = JSON.parse(JSON.stringify(BASE_TEMPLATE));
+          data.character_details.name = '';
+          data.character_details.concept = state.concept;
+          data.character_details.virtue = state.virtue;
+          data.character_details.vice = state.vice;
+
+          data.attributes.mental.intelligence = state.attributes.intelligence;
+          data.attributes.mental.wits = state.attributes.wits;
+          data.attributes.mental.resolve = state.attributes.resolve;
+          data.attributes.physical.strength = state.attributes.strength;
+          data.attributes.physical.dexterity = state.attributes.dexterity;
+          data.attributes.physical.stamina = state.attributes.stamina;
+          data.attributes.social.presence = state.attributes.presence;
+          data.attributes.social.manipulation = state.attributes.manipulation;
+          data.attributes.social.composure = state.attributes.composure;
+
+          SKILL_CATEGORIES.forEach((category) => {
+            SKILL_FIELDS[category].forEach((fieldName) => {
+              data.skills[category][fieldName] = state.skills[fieldName];
+            });
+          });
+
+          data.guided_creation = {
+            attribute_priority: state.attributePriority,
+            skill_priority: state.skillPriority,
+          };
+          data.other_details.merits = state.selectedMerits.map((merit) => ({
+            name: merit.name,
+            rating: merit.rating,
+          }));
+          return data;
+        }
+
+        function renderReview() {
+          const review = modal.querySelector('#guided-review');
+          review.textContent = JSON.stringify(buildResultJson(), null, 2);
+        }
+
+        function renderSummary() {
+          const summary = modal.querySelector('#guided-summary');
+          summary.innerHTML = `
+            <div>Concept: ${state.concept || 'not set'}</div>
+            <div>Virtue: ${state.virtue || '?'}</div>
+            <div>Vice: ${state.vice || '?'}</div>
+            <div>Attributes: ${state.attributePriority.best || '?'} / ${state.attributePriority.middle || '?'} / ${state.attributePriority.worst || '?'}</div>
+            <div>Skills: ${state.skillPriority.best || '?'} / ${state.skillPriority.middle || '?'} / ${state.skillPriority.worst || '?'}</div>
+          `;
+        }
+
+        function renderBudgets() {
+          const attributeBudgets = { best: 5, middle: 4, worst: 3 };
+          const skillBudgets = { best: 11, middle: 7, worst: 4 };
+
+          ['power', 'finesse', 'resistance'].forEach((category) => {
+            const expected = budgetForCategory(state.attributePriority, category, attributeBudgets);
+            const spent = getAttributeSpent(category);
+            const el = modal.querySelector(`#guided-${category}-budget`);
+            if (el) {
+              el.textContent = `Spent ${spent} / ${expected} points.`;
+            }
+          });
+
+          ['mental', 'physical', 'social'].forEach((category) => {
+            const expected = budgetForCategory(state.skillPriority, category, skillBudgets);
+            const spent = getSkillSpent(category);
+            const el = modal.querySelector(`#guided-${category}-budget`);
+            if (el) {
+              el.textContent = `Spent ${spent} / ${expected} dots.`;
+            }
+          });
+        }
+
+        function render() {
+          modal.querySelectorAll('.guided-step').forEach((panel) => {
+            panel.classList.toggle('is-active', Number(panel.dataset.step) === state.step);
+          });
+          stepTitle.textContent = `Step ${state.step}: ${STEP_LABELS[state.step - 1]}`;
+          stepCount.textContent = `${state.step} / ${STEP_LABELS.length}`;
+
+          if (state.step > 1) {
+            const conceptText = state.concept || '(not set yet)';
+            conceptReminder.textContent = `Concept: ${conceptText}`;
+            conceptReminder.style.display = 'block';
+          } else {
+            conceptReminder.style.display = 'none';
+          }
+
+          const bestAttr = ATTRIBUTE_CATEGORIES.map((value) => ({ value: titleize(value), raw: value }));
+          buildChoices('guided-vice-grid', VICES, state.vice, (value) => { state.vice = value; render(); });
+          buildChoices('guided-virtue-grid', VIRTUES, state.virtue, (value) => { state.virtue = value; render(); });
+          buildChoices(
+            'guided-attr-best',
+            bestAttr.map((item) => ({ value: item.raw, description: '' })),
+            state.attributePriority.best,
+            (value) => {
+              state.attributePriority.best = value;
+              if (state.attributePriority.worst === value) {
+                state.attributePriority.worst = '';
+              }
+              state.attributePriority.middle = deriveMiddle(state.attributePriority.best, state.attributePriority.worst, ATTRIBUTE_CATEGORIES);
+              render();
+            },
+          );
+          buildChoices(
+            'guided-attr-worst',
+            ATTRIBUTE_CATEGORIES.filter((value) => value !== state.attributePriority.best).map((value) => ({ value, description: '' })),
+            state.attributePriority.worst,
+            (value) => {
+              state.attributePriority.worst = value;
+              state.attributePriority.middle = deriveMiddle(state.attributePriority.best, state.attributePriority.worst, ATTRIBUTE_CATEGORIES);
+              render();
+            },
+          );
+          const attrSummary = modal.querySelector('#guided-attr-priority-summary');
+          attrSummary.textContent = `Best: ${state.attributePriority.best || '?'} | Middle: ${state.attributePriority.middle || '?'} | Worst: ${state.attributePriority.worst || '?'}`;
+
+          buildDotRows('guided-power-rows', ATTRIBUTE_FIELDS.power, state.attributes,
+            (fieldName) => { if (state.attributes[fieldName] > 1) { state.attributes[fieldName] -= 1; render(); } },
+            (fieldName) => { if (canIncreaseAttribute(fieldName)) { state.attributes[fieldName] += 1; render(); } },
+            (fieldName) => ({
+              canDecrease: state.attributes[fieldName] > 1,
+              canIncrease: canIncreaseAttribute(fieldName),
+              doubleCostAvailable: state.attributes[fieldName] === 4 && canIncreaseAttribute(fieldName),
+            }),
+          );
+          buildDotRows('guided-finesse-rows', ATTRIBUTE_FIELDS.finesse, state.attributes,
+            (fieldName) => { if (state.attributes[fieldName] > 1) { state.attributes[fieldName] -= 1; render(); } },
+            (fieldName) => { if (canIncreaseAttribute(fieldName)) { state.attributes[fieldName] += 1; render(); } },
+            (fieldName) => ({
+              canDecrease: state.attributes[fieldName] > 1,
+              canIncrease: canIncreaseAttribute(fieldName),
+              doubleCostAvailable: state.attributes[fieldName] === 4 && canIncreaseAttribute(fieldName),
+            }),
+          );
+          buildDotRows('guided-resistance-rows', ATTRIBUTE_FIELDS.resistance, state.attributes,
+            (fieldName) => { if (state.attributes[fieldName] > 1) { state.attributes[fieldName] -= 1; render(); } },
+            (fieldName) => { if (canIncreaseAttribute(fieldName)) { state.attributes[fieldName] += 1; render(); } },
+            (fieldName) => ({
+              canDecrease: state.attributes[fieldName] > 1,
+              canIncrease: canIncreaseAttribute(fieldName),
+              doubleCostAvailable: state.attributes[fieldName] === 4 && canIncreaseAttribute(fieldName),
+            }),
+          );
+
+          buildChoices(
+            'guided-skill-best',
+            SKILL_CATEGORIES.map((value) => ({ value, description: '' })),
+            state.skillPriority.best,
+            (value) => {
+              state.skillPriority.best = value;
+              if (state.skillPriority.worst === value) {
+                state.skillPriority.worst = '';
+              }
+              state.skillPriority.middle = deriveMiddle(state.skillPriority.best, state.skillPriority.worst, SKILL_CATEGORIES);
+              render();
+            },
+          );
+          buildChoices(
+            'guided-skill-worst',
+            SKILL_CATEGORIES.filter((value) => value !== state.skillPriority.best).map((value) => ({ value, description: '' })),
+            state.skillPriority.worst,
+            (value) => {
+              state.skillPriority.worst = value;
+              state.skillPriority.middle = deriveMiddle(state.skillPriority.best, state.skillPriority.worst, SKILL_CATEGORIES);
+              render();
+            },
+          );
+          const skillSummary = modal.querySelector('#guided-skill-priority-summary');
+          skillSummary.textContent = `Best: ${state.skillPriority.best || '?'} | Middle: ${state.skillPriority.middle || '?'} | Worst: ${state.skillPriority.worst || '?'}`;
+
+          buildDotRows('guided-mental-rows', SKILL_FIELDS.mental, state.skills,
+            (fieldName) => { if (state.skills[fieldName] > 0) { state.skills[fieldName] -= 1; render(); } },
+            (fieldName) => { if (canIncreaseSkill(fieldName)) { state.skills[fieldName] += 1; render(); } },
+            (fieldName) => ({
+              canDecrease: state.skills[fieldName] > 0,
+              canIncrease: canIncreaseSkill(fieldName),
+              doubleCostAvailable: state.skills[fieldName] === 4 && canIncreaseSkill(fieldName),
+            }),
+          );
+          buildDotRows('guided-physical-rows', SKILL_FIELDS.physical, state.skills,
+            (fieldName) => { if (state.skills[fieldName] > 0) { state.skills[fieldName] -= 1; render(); } },
+            (fieldName) => { if (canIncreaseSkill(fieldName)) { state.skills[fieldName] += 1; render(); } },
+            (fieldName) => ({
+              canDecrease: state.skills[fieldName] > 0,
+              canIncrease: canIncreaseSkill(fieldName),
+              doubleCostAvailable: state.skills[fieldName] === 4 && canIncreaseSkill(fieldName),
+            }),
+          );
+          buildDotRows('guided-social-rows', SKILL_FIELDS.social, state.skills,
+            (fieldName) => { if (state.skills[fieldName] > 0) { state.skills[fieldName] -= 1; render(); } },
+            (fieldName) => { if (canIncreaseSkill(fieldName)) { state.skills[fieldName] += 1; render(); } },
+            (fieldName) => ({
+              canDecrease: state.skills[fieldName] > 0,
+              canIncrease: canIncreaseSkill(fieldName),
+              doubleCostAvailable: state.skills[fieldName] === 4 && canIncreaseSkill(fieldName),
+            }),
+          );
+
+          renderMeritsStep();
+
+          renderBudgets();
+          renderStepper();
+          renderSummary();
+          renderReview();
+
+          const isFinalStep = state.step === STEP_LABELS.length;
+          prevButton.disabled = state.step === 1;
+          nextButton.style.display = isFinalStep ? 'none' : 'inline-flex';
+          exportButton.style.display = isFinalStep ? 'inline-flex' : 'none';
+        }
+
+        prevButton.addEventListener('click', () => {
+          if (state.step > 1) {
+            state.step -= 1;
+            setStatus('Moved to previous step.');
+            render();
+          }
+        });
+
+        nextButton.addEventListener('click', () => {
+          const error = validateStep();
+          if (error) {
+            setStatus(error, true);
+            return;
+          }
+          if (state.step < STEP_LABELS.length) {
+            state.step += 1;
+            setStatus('Step complete.');
+            render();
+          }
+        });
+
+        exportButton.addEventListener('click', () => {
+          const error = validateStep();
+          if (error) {
+            setStatus(error, true);
+            return;
+          }
+
+          const payload = buildResultJson();
+          const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+          const link = document.createElement('a');
+          const safeName = (state.concept || 'guided-character').toLowerCase().replace(/[^a-z0-9_-]+/g, '-');
+          link.href = URL.createObjectURL(blob);
+          link.download = `${safeName}.json`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(link.href);
+          setStatus('Exported JSON file.');
+        });
+
+        loadMeritsCatalog();
+        render();
+      }
+
+      function openCreateModal() {
+        let modal = document.getElementById('create-sheet-modal');
+        if (!modal) {
+          modal = buildCreateModal();
+        }
+        modal.classList.add('open');
+      }
+
+      function closeCreateModal() {
+        const modal = document.getElementById('create-sheet-modal');
+        if (modal) {
+          modal.classList.remove('open');
+        }
+      }
+
+      function openUploadModalFromButton(button) {
+        const systemName = button?.dataset?.systemName || '';
+        const userId = button?.dataset?.userId || '';
+        const sheetId = button?.dataset?.sheetId || '';
+        openUploadModal(systemName, userId, sheetId);
+      }
+
+      function openUploadModal(systemName, userId, sheetId) {
+        let modal = document.getElementById('upload-sheet-modal');
+        if (!modal) {
+          modal = buildUploadModal();
+        }
+        const userInput = modal.querySelector('input[name="user_id"]');
+        const systemInput = modal.querySelector('input[name="system_name"]');
+        const sheetInput = modal.querySelector('input[name="sheet_id"]');
+        if (userInput) {
+          userInput.value = userId || '';
+        }
+        if (systemInput) {
+          systemInput.value = systemName || 'World of Darkness Mortals';
+        }
+        if (sheetInput) {
+          sheetInput.value = sheetId || '';
+        }
+        modal.classList.add('open');
+      }
+
+      function closeUploadModal() {
+        const modal = document.getElementById('upload-sheet-modal');
+        if (modal) {
+          modal.classList.remove('open');
+        }
+      }
+
+      function openToolbarUploadModal() {
+        let modal = document.getElementById('toolbar-upload-sheet-modal');
+        if (!modal) {
+          modal = buildToolbarUploadModal();
+        }
+        modal.classList.add('open');
+      }
+
+      function closeToolbarUploadModal() {
+        const modal = document.getElementById('toolbar-upload-sheet-modal');
+        if (modal) {
+          modal.classList.remove('open');
+        }
+      }
+
+      function openDownloadModal() {
+        let modal = document.getElementById('download-system-modal');
+        if (!modal) {
+          modal = buildDownloadModal();
+        }
+        modal.classList.add('open');
+      }
+
+      function closeDownloadModal() {
+        const modal = document.getElementById('download-system-modal');
+        if (modal) {
+          modal.classList.remove('open');
+        }
+      }
+
+      function openDeleteModal(button) {
+        const modal = document.getElementById('delete-sheet-modal');
+        if (!modal) {
+          return;
+        }
+        const userIdInput = modal.querySelector('input[name="user_id"]');
+        const sheetIdInput = modal.querySelector('input[name="sheet_id"]');
+        if (userIdInput) {
+          userIdInput.value = button?.dataset?.userId || '';
+        }
+        if (sheetIdInput) {
+          sheetIdInput.value = button?.dataset?.sheetId || '';
+        }
+        modal.classList.add('open');
+      }
+
+      function closeDeleteModal() {
+        const modal = document.getElementById('delete-sheet-modal');
+        if (modal) {
+          modal.classList.remove('open');
+        }
+      }
+
+      function attachDeleteModalBehavior() {
+        const modal = document.getElementById('delete-sheet-modal');
+        if (!modal) {
+          return;
+        }
+
+        modal.addEventListener('click', (event) => {
+          if (event.target === modal) {
+            closeDeleteModal();
+          }
+        });
+
+        const closeButton = modal.querySelector('.close-button');
+        if (closeButton) {
+          closeButton.addEventListener('click', closeDeleteModal);
+        }
+
+        const secondaryButton = modal.querySelector('.kingsheets-link.secondary');
+        if (secondaryButton) {
+          secondaryButton.addEventListener('click', closeDeleteModal);
+        }
+      }
+
+      attachDeleteModalBehavior();
+
+    </script>
+  </body>
+</html>
